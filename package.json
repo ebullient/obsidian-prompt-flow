@@ -27,7 +27,7 @@
   "repository": "github.com:ebullient/obsidian-journal-reflect",
   "license": "MIT",
   "devDependencies": {
-    "@biomejs/biome": "2.2.4",
+    "@biomejs/biome": "2.2.5",
     "@types/codemirror": "5.60.16",
     "@types/node": "^24.6.2",
     "@typescript-eslint/parser": "^8.46.4",
