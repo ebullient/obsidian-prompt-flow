@@ -33,7 +33,7 @@
     "@typescript-eslint/parser": "^8.46.4",
     "auto-changelog": "^2.5.0",
     "builtin-modules": "^5.0.0",
-    "dotenv": "^17.2.2",
+    "dotenv": "^17.2.3",
     "esbuild": "^0.25.9",
     "esbuild-sass-plugin": "^3.3.1",
     "eslint": "^9.39.1",
