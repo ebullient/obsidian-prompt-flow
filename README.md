@@ -1,64 +1,80 @@
-# Journal Reflect Plugin
+# Journal Reflect
 
 An Obsidian plugin that uses local AI (Ollama) to generate thoughtful reflection questions while journaling.
+
+> **Important Notes**
+>
+> - **Privacy**: All processing happens locally using your own Ollama instance. No data is sent to external services.
+> - **Network Use**: This plugin only communicates with your local Ollama instance (default: `http://localhost:11434`).
+> - **Mobile Support**: Works on both desktop and mobile devices.
 
 ## Features
 
 - **AI-Powered Reflections**: Uses your local Ollama instance to generate personalized reflection questions
 - **Smart Insertion**: Add reflections at your cursor position with intelligent formatting
 - **Privacy-First**: All processing happens locally using your own Ollama instance
-- **Customizable**: Configure system prompts, model selection, and Ollama connection settings
+- **Customizable Prompts**: Configure system prompts, model selection, and per-note overrides
+- **Link Expansion**: Optionally include content from `[[wikilinks]]` in your prompts
+- **Content Filtering**: Exclude specific callout types or link patterns from processing
+- **External Filter API**: Register custom content filters via `window.journal.filters`
 
 ## Requirements
 
 - [Ollama](https://ollama.ai/) running locally
 - A language model installed in Ollama (e.g., `llama3.1`, `mistral`)
 
-## Plugin installation
+## Installation
 
-1. Build the plugin
+### Manual Installation
 
-    ```console
-    npm install
-    npm run build
-    ```
+1. Download the latest release from GitHub
+2. Extract the files to your vault's `.obsidian/plugins/journal-reflect/` directory
+3. Reload Obsidian
+4. Enable "Journal Reflect" in Settings → Community Plugins
 
-2. Create a plugin directory in your obsidian vault: `.obsidian/plugins/journal-reflect`
-3. Copy the contents of the build directory to the plugin directory
-4. In Obsidian, refresh the list of Community plugins, and enable Journal Reflect
+### Building from Source
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
 
 ## Setup
 
-1. Install and start Ollama (instructions beyond scope of this project)
+1. Install and start Ollama on your machine
 2. Pull a model: `ollama pull llama3.1`
-3. [Configure](#configuration) the plugin settings in Obsidian
-4. Test the connection in settings
-
-## Configuration
-
-Access settings through Obsidian's plugin settings:
-
-- **Ollama URL**: Your local Ollama instance URL (default: `http://localhost:11434`)
-- **Model Name**: The Ollama model to use (e.g., `llama3.1`)
-- **System Prompt**: Default instructions for generating reflection questions
+3. In Obsidian, go to Settings → Journal Reflect
+4. Configure your Ollama URL (default: `http://localhost:11434`)
+5. Set your default model name (e.g., `llama3.1`)
+6. Test the connection using the test button
 
 ## Usage
 
-Use the command palette to access:
+### Basic Usage
 
-- **Generate reflection question** - Adds a question at your cursor position
+1. Open a note in Obsidian
+2. Position your cursor where you want the reflection to appear
+3. Open the command palette (Cmd/Ctrl + P)
+4. Run: **Generate reflection question**
+5. The AI-generated reflection appears as a blockquote at your cursor
 
-Responses appear as blockquotes (>) in your journal. Position your cursor where you want the reflection to appear.
+### Configuring Prompts
 
-### Frontmatter Override
+In Settings → Journal Reflect → Prompts:
 
-You can override the system prompt on a per-document basis using frontmatter.
+- **Add new prompt**: Create custom prompt configurations
+- **Display label**: The name shown in commands and notifications
+- **Prompt file**: Path to a markdown file containing your prompt (optional)
+
+For each prompt, a command is automatically created: `Generate [prompt name]`
+
+### Per-Note Prompt Overrides
+
+Override prompts on a per-document basis using frontmatter.
 
 **Prompt Resolution Priority:**
 
 1. `prompt` in frontmatter (highest priority)
 2. `prompt-file` in frontmatter
-3. Prompt defined in plugin configuration (fallback)
+3. Prompt file defined in plugin configuration
+4. Built-in default prompt (fallback)
 
 #### Option 1: Direct prompt in frontmatter
 
@@ -76,9 +92,9 @@ prompt-file: "prompts/creative-writing-coach.md"
 ---
 ```
 
-Prompt files can include their own frontmatter to override model settings. Add
-`model`, `num_ctx`, `temperature`, `top_p`, `repeat_penalty`, and `isContinuous`
-to tailor Ollama requests for that prompt:
+### Prompt File Configuration
+
+Prompt files can include frontmatter to customize behavior:
 
 ```markdown
 ---
@@ -86,33 +102,51 @@ model: llama3.1
 num_ctx: 4096
 temperature: 0.7
 top_p: 0.9
+top_k: 40
 repeat_penalty: 1.1
 isContinuous: true
+includeLinks: true
+excludeCalloutTypes: ["todo", "warning"]
+wrapInBlockquote: true
 ---
 You are a reflective companion. Ask concise questions that help summarize the
 day.
 ```
 
-When `isContinuous` is `true`, the plugin keeps a private Ollama conversation
-context for each prompt/note combination so follow-up questions build on the
-previous exchange. Context is automatically refreshed after a short idle period.
-Other frontmatter keys are ignored unless explicitly supported, which helps
-avoid unintentionally pushing plugin-specific metadata to Ollama.
+**Available options:**
 
-### Pre-Filter API
+- `model`: Specific Ollama model to use
+- `num_ctx`: Context window size (tokens)
+- `temperature`: Randomness (0.0-2.0, default: 0.8)
+- `top_p`: Nucleus sampling threshold (0.0-1.0)
+- `top_k`: Top-k sampling limit
+- `repeat_penalty`: Penalty for repetition (>0, default: 1.1)
+- `isContinuous`: Keep conversation context between requests (default: false)
+- `includeLinks`: Auto-expand `[[wikilinks]]` to include linked content (default: false)
+- `excludePatterns`: Array of regex patterns to exclude links
+- `excludeCalloutTypes`: Array of callout types to filter from content
+- `filters`: Array of filter function names from `window.journal.filters`
+- `wrapInBlockquote`: Format output as blockquote (default: true)
+- `calloutHeading`: Heading text for callout-style formatting
+- `replaceSelectedText`: Replace selected text instead of inserting (default: false)
 
-The plugin provides a global API for registering content filters that process
-text before it is sent to Ollama. This allows external scripts (e.g., via
-CustomJS or other plugins) to modify content programmatically.
+### Continuous Conversations
 
-#### Registering a Filter
+When `isContinuous` is `true`, the plugin maintains conversation context for each prompt/note combination. This allows follow-up questions to build on previous exchanges. Context is automatically cleared after 30 minutes of inactivity.
 
-Filters are registered via `window.journal.filters`, which is a plain object
-mapping filter names to filter functions. The plugin creates this object if it
-doesn't exist, so external scripts can register filters before or after the
-plugin loads.
+### Link Expansion
 
-**Example registration:**
+When `includeLinks` is enabled, the plugin automatically includes content from `[[wikilinks]]` and embeds in your note. This provides the AI with broader context.
+
+**Link filtering:**
+
+Configure global exclude patterns in Settings → Link filtering, or use `excludePatterns` in prompt frontmatter to filter specific links.
+
+### Advanced: External Filter API
+
+The plugin exposes `window.journal.filters` for external scripts (CustomJS, other plugins) to register content transformation functions.
+
+**Example filter registration:**
 
 ```javascript
 // In a CustomJS script or another plugin
@@ -120,49 +154,75 @@ window.journal = window.journal || {};
 window.journal.filters = window.journal.filters || {};
 
 window.journal.filters.redactSecrets = (content) => {
-    // Replace sensitive patterns
     return content.replace(/password:\s*\S+/gi, "password: ***");
-};
-
-window.journal.filters.removeEmojis = (content) => {
-    // Strip emoji characters
-    return content.replace(/[\u{1F600}-\u{1F64F}]/gu, "");
 };
 ```
 
-#### Using Filters in Prompt Files
-
-Specify which filters to apply in the prompt file frontmatter using the
-`filters` array. Filters are applied sequentially in the order specified.
+**Using filters in prompt files:**
 
 ```markdown
 ---
-model: llama3.1
 filters: ["redactSecrets", "removeEmojis"]
 ---
-You are a thoughtful coach. Generate a reflection question.
+Generate a thoughtful reflection question.
 ```
 
-#### Filter Function Signature
+Filters are applied sequentially in the order specified before sending content to Ollama.
 
-Filters must be synchronous functions that accept a string and return a string:
+## Configuration Reference
 
-```typescript
-type FilterFn = (content: string) => string;
-```
+### Ollama Settings
 
-#### Error Handling
+- **Ollama URL**: URL of your Ollama instance (default: `http://localhost:11434`)
+- **Model name**: Default model to use (e.g., `llama3.1`, `mistral`)
+- **Keep alive**: How long to keep model loaded in memory (e.g., `10m`, `1h`, `-1` for always)
 
-- If a filter name is not found in `window.journal.filters`, a warning is
-  logged to the console and processing continues
-- If a filter throws an error, the error is logged and the original
-  (unfiltered) content is used for that request
-- Filters are only applied when specified in prompt file frontmatter
+### Link Filtering
+
+- **Exclude link patterns**: Regex patterns to skip links (one per line). Matched against markdown format: `[display text](link target)`
+
+### Debug Options
+
+- **Show LLM request payloads**: Log prompts and content sent to Ollama (useful for debugging)
+- **Enable debug logging**: Verbose plugin events in developer console
 
 ## Privacy & Security
 
-This plugin only communicates with your local Ollama instance. No data is sent to external services.
+- **Local-only processing**: All AI generation happens via your local Ollama instance
+- **No telemetry**: No usage tracking or data collection
+- **No external services**: Plugin only communicates with your configured Ollama URL
+
+## Troubleshooting
+
+**Cannot connect to Ollama:**
+
+- Verify Ollama is running: `ollama serve`
+- Check the Ollama URL in settings
+- Test connection using the test button in settings
+
+**No models found:**
+
+- Pull a model: `ollama pull llama3.1`
+- Verify models are installed: `ollama list`
+
+**Reflection not appearing:**
+
+- Check cursor position (must be in edit mode)
+- Review console for errors (Cmd/Ctrl + Shift + I)
+- Enable debug logging in settings
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, build commands, and architecture details. AI assistants should review [CLAUDE.md](CLAUDE.md) for working guidelines.
 
 ## Acknowledgements
 
-This is based on [Build an LLM Journaling Reflection Plugin for Obsidian](https://thomaschang.me/blog/obsidian-reflect) by Thomas Chang, see [his implementation](https://github.com/tchbw/obsidian-reflect/).
+This plugin is based on [Build an LLM Journaling Reflection Plugin for Obsidian](https://thomaschang.me/blog/obsidian-reflect) by Thomas Chang. See [his implementation](https://github.com/tchbw/obsidian-reflect/).
+
+## License
+
+MIT
+
+## Author
+
+[ebullient](https://github.com/ebullient)
