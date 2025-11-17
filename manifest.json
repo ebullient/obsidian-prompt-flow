@@ -1,7 +1,7 @@
 {
 	"id": "prompt-flow",
 	"name": "Prompt Flow",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"minAppVersion": "1.9.0",
 	"description": "Local AI content generation with Ollama. Features custom prompts, content filtering, link expansion, continuous conversations, and extensible filter API.",
 	"author": "ebullient",
