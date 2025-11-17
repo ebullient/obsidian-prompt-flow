@@ -22,6 +22,7 @@ import {
     filterCallouts,
     formatAsBlockquote,
     normalizeToArray,
+    type optionalStrings,
     parseBoolean,
     parseLinkReference,
     parseParameterWithConstraint,
@@ -57,16 +58,19 @@ export class JournalReflectPlugin extends Plugin implements Logger {
             this.generateCommands();
             this.registerContextReaper();
         });
-        this.logInfo("Loaded");
+        this.logInfo(
+            "Loaded Journal Reflect (JR)",
+            `v${this.manifest.version}`,
+        );
     }
 
     onunload() {
-        this.logInfo("Unloaded");
+        this.logInfo("Unloaded Journal Reflect (JR)");
     }
 
     onExternalSettingsChange = debounce(
         async () => {
-            const incoming = await this.loadData();
+            const incoming = (await this.loadData()) as JournalReflectSettings;
             this.logDebug("Settings changed", incoming);
             this.settings = Object.assign({}, this.settings, incoming);
             await this.saveSettings();
@@ -120,8 +124,8 @@ export class JournalReflectPlugin extends Plugin implements Logger {
         this.settings = Object.assign(
             {},
             DEFAULT_SETTINGS,
-            await this.loadData(),
-        );
+            (await this.loadData()) as JournalReflectSettings,
+        ) as JournalReflectSettings;
         if (this.ollamaClient) {
             this.updateOllamaClient();
         }
@@ -407,7 +411,7 @@ export class JournalReflectPlugin extends Plugin implements Logger {
                     ["repeat_penalty", "repeatPenalty", "repeat-penalty"],
                     (val) => val > 0,
                 );
-                const rawContinuous =
+                const rawContinuous: unknown =
                     frontmatter?.isContinuous ??
                     frontmatter?.is_continuous ??
                     frontmatter?.["is-continuous"] ??
@@ -415,12 +419,14 @@ export class JournalReflectPlugin extends Plugin implements Logger {
                 const isContinuous = parseBoolean(rawContinuous);
                 const includeLinks = parseBoolean(frontmatter?.includeLinks);
                 const excludePatterns = compileExcludePatterns(
-                    frontmatter?.excludePatterns,
+                    frontmatter?.excludePatterns as optionalStrings,
                 );
                 const excludeCalloutTypes = normalizeToArray(
-                    frontmatter?.excludeCalloutTypes,
+                    frontmatter?.excludeCalloutTypes as optionalStrings,
                 );
-                const filters = normalizeToArray(frontmatter?.filters);
+                const filters = normalizeToArray(
+                    frontmatter?.filters as optionalStrings,
+                );
                 const wrapInBlockquote = parseBoolean(
                     frontmatter?.wrapInBlockquote,
                 );
@@ -719,11 +725,11 @@ export class JournalReflectPlugin extends Plugin implements Logger {
     }
 
     logInfo(message: string, ...params: unknown[]): void {
-        console.info("[Journal Reflect]", message, ...params);
+        console.debug("(JR)", message, ...params);
     }
 
     logWarn(message: string, ...params: unknown[]): void {
-        console.warn("[Journal Reflect]", message, ...params);
+        console.warn("(JR)", message, ...params);
     }
 
     logError(
@@ -732,25 +738,25 @@ export class JournalReflectPlugin extends Plugin implements Logger {
         ...params: unknown[]
     ): string {
         if (message) {
-            console.error("[Journal Reflect]", message, error, ...params);
+            console.error("(JR)", message, error, ...params);
             return message;
         } else if (error instanceof Error) {
-            console.error("[Journal Reflect]", error.message, error, ...params);
+            console.error("(JR)", error.message, error, ...params);
             return error.message;
         }
-        console.error("[Journal Reflect]", error, ...params);
+        console.error("(JR)", error, ...params);
         return String(error);
     }
 
     logDebug(message: string, ...params: unknown[]): void {
         if (this.settings?.debugLogging) {
-            console.debug("[Journal Reflect]", message, ...params);
+            console.debug("(JR)", message, ...params);
         }
     }
 
     private logLlmRequest(payload: unknown): void {
         if (this.settings?.showLlmRequests) {
-            console.info("[Journal Reflect][LLM Request]", payload);
+            console.debug("(JR)[LLM Request]", payload);
         }
     }
 }
