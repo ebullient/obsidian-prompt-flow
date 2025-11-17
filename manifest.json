@@ -1,7 +1,7 @@
 {
 	"id": "journal-reflect",
 	"name": "Journal Reflect",
-	"version": "0.6.0",
+	"version": "0.6.1",
 	"minAppVersion": "1.9.0",
 	"description": "Journal reflection plugin for Obsidian",
 	"author": "ebullient",

@@ -1,6 +1,6 @@
 {
   "name": "obsidian-journal-reflect",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Journal reflection plugin for Obsidian (https://obsidian.md)",
   "main": "main.js",
   "scripts": {
