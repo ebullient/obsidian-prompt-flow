@@ -1,3 +1,5 @@
+export type optionalStrings = string | string[] | undefined;
+
 /**
  * Normalizes a string or array value to an array of trimmed, non-empty strings.
  * Useful for parsing YAML frontmatter that can be either format.
@@ -6,7 +8,7 @@
  * @returns Array of trimmed non-empty strings, or undefined if input is empty
  */
 export function normalizeToArray(
-    value?: string | string[],
+    value?: optionalStrings,
 ): string[] | undefined {
     if (!value) {
         return undefined;
@@ -28,7 +30,7 @@ export function normalizeToArray(
  * @returns Array of compiled RegExp objects
  */
 export function compileExcludePatterns(
-    excludePatternsRaw?: string | string[],
+    excludePatternsRaw?: optionalStrings,
 ): RegExp[] {
     const patterns = normalizeToArray(excludePatternsRaw);
     if (!patterns) {
@@ -84,7 +86,9 @@ export function parseFiniteNumber(value: unknown): number | undefined {
     const parsed =
         typeof value === "number"
             ? value
-            : Number.parseFloat(String(value).trim());
+            : typeof value === "string"
+              ? Number.parseFloat(value.trim())
+              : Number.NaN;
 
     if (Number.isFinite(parsed)) {
         return parsed;

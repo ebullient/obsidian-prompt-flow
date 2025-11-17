@@ -18,7 +18,9 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
     }
 
     private cloneSettings(): JournalReflectSettings {
-        return JSON.parse(JSON.stringify(this.plugin.settings));
+        return JSON.parse(
+            JSON.stringify(this.plugin.settings),
+        ) as JournalReflectSettings;
     }
 
     async reset() {
@@ -33,12 +35,9 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
 
         this.containerEl.empty();
 
-        new Setting(this.containerEl)
-            .setName("Journal Reflect")
-            .setHeading()
-            .setDesc(
-                "Configure your local Ollama instance for AI-powered journal reflections.",
-            );
+        new Setting(this.containerEl).setDesc(
+            "Configure your local Ollama instance for AI-powered journal reflections.",
+        );
 
         new Setting(this.containerEl)
             .setName("Save settings")
@@ -47,8 +46,8 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
                 button
                     .setIcon("reset")
                     .setTooltip("Reset to previously saved values")
-                    .onClick(() => {
-                        this.reset();
+                    .onClick(async () => {
+                        await this.reset();
                     }),
             )
             .addButton((button) => {
@@ -114,7 +113,7 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
             )
             .addButton((bc) =>
                 bc
-                    .setTooltip("Test Connection")
+                    .setTooltip("Test connection")
                     .setIcon("cable")
                     .onClick(async (_e) => {
                         bc.setTooltip("Testing...");
@@ -125,13 +124,13 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
                             `${this.newSettings.ollamaUrl} - ${message}`,
                         );
 
-                        bc.setTooltip("Test Connection");
+                        bc.setTooltip("Test connection");
                         bc.setDisabled(false);
                     }),
             );
 
         new Setting(this.containerEl)
-            .setName("Model Name")
+            .setName("Model name")
             .setDesc(
                 "Name of the default Ollama model to use (e.g., llama3.1, mistral)",
             )
@@ -145,7 +144,7 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
             );
 
         new Setting(this.containerEl)
-            .setName("Keep Alive")
+            .setName("Keep alive")
             .setDesc(
                 "How long to keep model loaded in memory (e.g., '10m', '1h', '-1' for always). Speeds up subsequent requests.",
             )
@@ -162,17 +161,17 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
             .setName("Prompts")
             .setHeading()
             .setDesc(
-                "For each configured prompt, a command is automatically created, Generate [prompt name]. When the command is run, it will send the prompt associated with the command, the current note, and (optionally) the contents of linked notes to the LLM. Generated content is inserted as blockquotes (>) at the current cursor position in the current note.",
+                "For each configured prompt, a command is automatically created: generate [prompt name]. When the command is run, it will send the prompt associated with the command, the current note, and (optionally) the contents of linked notes to the LLM. Generated content is inserted as blockquotes (>) at the current cursor position in the current note.",
             );
 
         this.displayPromptConfigs(this.containerEl);
 
         new Setting(this.containerEl)
-            .setName("Add New Prompt")
+            .setName("Add new prompt")
             .setDesc("Add a new prompt configuration")
             .addButton((button) =>
                 button
-                    .setButtonText("Add Prompt")
+                    .setButtonText("Add prompt")
                     .setCta()
                     .onClick(() => {
                         this.addNewPrompt();
@@ -182,13 +181,13 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
         new Setting(this.containerEl).setName("Other").setHeading();
 
         new Setting(this.containerEl)
-            .setName("Exclude Link Patterns")
+            .setName("Exclude link patterns")
             .setDesc(
-                "Skip links whose that matches these patterns (regex, one pattern per line). Links will be matched in markdown format, e.g. [displayText](linkTarget).",
+                "Skip links that match these patterns (regex, one pattern per line). Links will be matched in markdown format, e.g. [display text](link target).",
             )
             .addTextArea((text) =>
                 text
-                    .setPlaceholder("^Reflect on\nTODO:\n\\[template\\]")
+                    .setPlaceholder("^reflect on\ntodo:\n\\[template\\]")
                     .setValue(this.newSettings.excludePatterns)
                     .onChange((value) => {
                         this.newSettings.excludePatterns = value;
@@ -236,7 +235,7 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
             });
 
             new Setting(promptSection)
-                .setName("Display Label")
+                .setName("Display label")
                 .setDesc("Label shown in commands and notifications")
                 .addText((text) =>
                     text
@@ -251,13 +250,16 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
                 inputEl: HTMLElement,
                 filePath: string,
             ) => {
-                (await this.app.vault.adapter.exists(filePath))
-                    ? inputEl.addClass("fileFound")
-                    : inputEl.removeClass("fileFound");
+                const exists = await this.app.vault.adapter.exists(filePath);
+                if (exists) {
+                    inputEl.addClass("fileFound");
+                } else {
+                    inputEl.removeClass("fileFound");
+                }
             };
 
             new Setting(promptSection)
-                .setName("Prompt File")
+                .setName("Prompt file")
                 .setDesc(
                     "Path to file containing prompt (leave empty to use inline prompt)",
                 )
@@ -269,13 +271,13 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
                             const path = value.trim();
                             this.newSettings.prompts[promptKey].promptFile =
                                 path;
-                            checkFile(text.inputEl, path);
+                            await checkFile(text.inputEl, path);
                         }),
                 );
 
             if (promptKey !== "reflection") {
                 new Setting(promptSection)
-                    .setName("Remove Prompt")
+                    .setName("Remove prompt")
                     .setDesc("Delete this prompt configuration")
                     .addButton((button) =>
                         button
@@ -310,6 +312,6 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
 
     /** Save on exit */
     hide(): void {
-        this.save();
+        void this.save();
     }
 }

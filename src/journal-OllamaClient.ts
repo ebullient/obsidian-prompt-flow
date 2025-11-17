@@ -68,7 +68,7 @@ export class OllamaClient implements IOllamaClient {
                 body: JSON.stringify(generateRequest),
             });
 
-            const data: GenerateResponse = response.json;
+            const data = response.json as GenerateResponse;
             return {
                 response: data.response?.trim() ?? null,
                 context: data.context,
@@ -90,7 +90,7 @@ export class OllamaClient implements IOllamaClient {
                 method: "GET",
             });
             return true;
-        } catch (_error) {
+        } catch {
             return false;
         }
     }
@@ -102,7 +102,7 @@ export class OllamaClient implements IOllamaClient {
                 method: "GET",
             });
 
-            const data: ListResponse = response.json;
+            const data = response.json as ListResponse;
             return data.models?.map((model) => model.name) || [];
         } catch (error) {
             this.logger.logError(error, "Error fetching models");
