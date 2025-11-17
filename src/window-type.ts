@@ -1,9 +1,9 @@
-// Global window type extensions for journal-reflect plugin
+// Global window type extensions for pflow-reflect plugin
 type FilterFn = (content: string) => string;
 
 declare global {
     interface Window {
-        journal?: {
+        promptFlow?: {
             filters?: Record<string, FilterFn>;
         };
     }

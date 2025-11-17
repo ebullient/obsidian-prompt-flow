@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { filterCallouts } from "../src/journal-Utils";
+import { filterCallouts } from "../src/pflow-Utils";
 
 describe("filterCallouts", () => {
     it("should return content unchanged when no callout types specified", () => {

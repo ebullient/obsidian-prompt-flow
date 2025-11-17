@@ -1,13 +1,13 @@
 import { type App, PluginSettingTab, Setting } from "obsidian";
-import type { JournalReflectSettings, PromptConfig } from "./@types";
-import { OllamaClient } from "./journal-OllamaClient";
-import type { JournalReflectPlugin } from "./journal-Plugin";
+import type { PromptConfig, PromptFlowSettings } from "./@types";
+import { OllamaClient } from "./pflow-OllamaClient";
+import type { PromptFlowPlugin } from "./pflow-Plugin";
 
-export class JournalReflectSettingsTab extends PluginSettingTab {
-    plugin: JournalReflectPlugin;
-    newSettings!: JournalReflectSettings;
+export class PromptFlowSettingsTab extends PluginSettingTab {
+    plugin: PromptFlowPlugin;
+    newSettings!: PromptFlowSettings;
 
-    constructor(app: App, plugin: JournalReflectPlugin) {
+    constructor(app: App, plugin: PromptFlowPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -17,10 +17,10 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
         await this.plugin.saveSettings();
     }
 
-    private cloneSettings(): JournalReflectSettings {
+    private cloneSettings(): PromptFlowSettings {
         return JSON.parse(
             JSON.stringify(this.plugin.settings),
-        ) as JournalReflectSettings;
+        ) as PromptFlowSettings;
     }
 
     async reset() {
@@ -41,7 +41,7 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
 
         new Setting(this.containerEl)
             .setName("Save settings")
-            .setClass("journal-reflect-save-reset")
+            .setClass("pflow-reflect-save-reset")
             .addButton((button) =>
                 button
                     .setIcon("reset")
@@ -200,7 +200,7 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
                     ?.setAttribute("rows", "4");
             });
 
-        new Setting(this.containerEl).setName("Debug options").setHeading();
+        new Setting(this.containerEl).setName("Debugging").setHeading();
 
         new Setting(this.containerEl)
             .setName("Show LLM request payloads")
@@ -234,7 +234,7 @@ export class JournalReflectSettingsTab extends PluginSettingTab {
             this.newSettings.prompts,
         )) {
             const promptSection = containerEl.createEl("div", {
-                cls: "setting-item-group journal-reflect-prompt-config",
+                cls: "setting-item-group pflow-reflect-prompt-config",
             });
 
             new Setting(promptSection)

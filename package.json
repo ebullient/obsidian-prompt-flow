@@ -1,8 +1,8 @@
 {
-  "name": "obsidian-journal-reflect",
-  "version": "0.6.0",
-  "description": "Journal reflection plugin for Obsidian (https://obsidian.md)",
+  "name": "obsidian-prompt-flow",
+  "description": "Local AI content generation for Obsidian with Ollama. Features custom prompts, content filtering, link expansion, continuous conversations, and extensible filter API.",
   "main": "main.js",
+  "version": "0.6.0",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "fix": "npx @biomejs/biome check --write ./src",
@@ -24,7 +24,7 @@
     "obsidian-md-plugin"
   ],
   "author": "ebullient",
-  "repository": "github.com:ebullient/obsidian-journal-reflect",
+  "repository": "github.com:ebullient/obsidian-prompt-flow",
   "license": "MIT",
   "devDependencies": {
     "@biomejs/biome": "2.2.6",

@@ -24,7 +24,7 @@ export interface ResolvedPrompt {
     replaceSelectedText?: boolean;
 }
 
-export interface JournalReflectSettings {
+export interface PromptFlowSettings {
     showLlmRequests: boolean;
     debugLogging: boolean;
     ollamaUrl: string;

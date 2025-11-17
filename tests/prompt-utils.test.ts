@@ -8,7 +8,7 @@ import {
     getFrontmatterValue,
     extractFrontmatterValue,
     parseParameterWithConstraint,
-} from "../src/journal-Utils";
+} from "../src/pflow-Utils";
 
 describe("normalizeToArray", () => {
     it("should return undefined for empty/null/undefined input", () => {

@@ -9,13 +9,13 @@ import {
 } from "obsidian";
 import type {
     FileToProcess,
-    JournalReflectSettings,
     Logger,
+    PromptFlowSettings,
     ResolvedPrompt,
 } from "./@types";
-import { DEFAULT_PROMPT, DEFAULT_SETTINGS } from "./journal-Constants";
-import { OllamaClient } from "./journal-OllamaClient";
-import { JournalReflectSettingsTab } from "./journal-SettingsTab";
+import { DEFAULT_PROMPT, DEFAULT_SETTINGS } from "./pflow-Constants";
+import { OllamaClient } from "./pflow-OllamaClient";
+import { PromptFlowSettingsTab } from "./pflow-SettingsTab";
 import {
     compileExcludePatterns,
     extractFrontmatterValue,
@@ -27,14 +27,14 @@ import {
     parseLinkReference,
     parseParameterWithConstraint,
     parsePositiveInteger,
-} from "./journal-Utils";
+} from "./pflow-Utils";
 import "./window-type";
 
 const CONTEXT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const CONTEXT_REAP_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
 
-export class JournalReflectPlugin extends Plugin implements Logger {
-    settings!: JournalReflectSettings;
+export class PromptFlowPlugin extends Plugin implements Logger {
+    settings!: PromptFlowSettings;
     ollamaClient!: OllamaClient;
     private commandIds: string[] = [];
     private excludePatterns: RegExp[] = [];
@@ -46,11 +46,11 @@ export class JournalReflectPlugin extends Plugin implements Logger {
     async onload() {
         await this.loadSettings();
 
-        this.addSettingTab(new JournalReflectSettingsTab(this.app, this));
+        this.addSettingTab(new PromptFlowSettingsTab(this.app, this));
 
         // Initialize window.journal.filters for external scripts
-        window.journal = window.journal ?? {};
-        window.journal.filters = window.journal.filters ?? {};
+        window.promptFlow = window.promptFlow ?? {};
+        window.promptFlow.filters = window.promptFlow.filters ?? {};
 
         // Defer initialization until layout is ready
         this.app.workspace.onLayoutReady(() => {
@@ -58,19 +58,16 @@ export class JournalReflectPlugin extends Plugin implements Logger {
             this.generateCommands();
             this.registerContextReaper();
         });
-        this.logInfo(
-            "Loaded Journal Reflect (JR)",
-            `v${this.manifest.version}`,
-        );
+        this.logInfo("Loaded Prompt Flow (PF)", `v${this.manifest.version}`);
     }
 
     onunload() {
-        this.logInfo("Unloaded Journal Reflect (JR)");
+        this.logInfo("Unloaded Prompt Flow (PF)");
     }
 
     onExternalSettingsChange = debounce(
         async () => {
-            const incoming = (await this.loadData()) as JournalReflectSettings;
+            const incoming = (await this.loadData()) as PromptFlowSettings;
             this.logDebug("Settings changed", incoming);
             this.settings = Object.assign({}, this.settings, incoming);
             await this.saveSettings();
@@ -96,7 +93,7 @@ export class JournalReflectPlugin extends Plugin implements Logger {
         for (const [promptKey, promptConfig] of Object.entries(
             this.settings.prompts,
         )) {
-            const commandId = `journal-${promptKey}`;
+            const commandId = `pflow-${promptKey}`;
 
             this.addCommand({
                 id: commandId,
@@ -124,8 +121,8 @@ export class JournalReflectPlugin extends Plugin implements Logger {
         this.settings = Object.assign(
             {},
             DEFAULT_SETTINGS,
-            (await this.loadData()) as JournalReflectSettings,
-        ) as JournalReflectSettings;
+            (await this.loadData()) as PromptFlowSettings,
+        );
         if (this.ollamaClient) {
             this.updateOllamaClient();
         }
@@ -619,10 +616,10 @@ export class JournalReflectPlugin extends Plugin implements Logger {
         let processedContent = content;
 
         for (const filterName of filterNames) {
-            const filterFn = window.journal?.filters?.[filterName];
+            const filterFn = window.promptFlow?.filters?.[filterName];
             if (!filterFn) {
                 this.logWarn(
-                    `Filter "${filterName}" not found in window.journal.filters`,
+                    `Filter "${filterName}" not found in window.promptFlow.filters`,
                 );
                 continue;
             }
@@ -725,11 +722,11 @@ export class JournalReflectPlugin extends Plugin implements Logger {
     }
 
     logInfo(message: string, ...params: unknown[]): void {
-        console.debug("(JR)", message, ...params);
+        console.debug("(PF)", message, ...params);
     }
 
     logWarn(message: string, ...params: unknown[]): void {
-        console.warn("(JR)", message, ...params);
+        console.warn("(PF)", message, ...params);
     }
 
     logError(
@@ -738,25 +735,25 @@ export class JournalReflectPlugin extends Plugin implements Logger {
         ...params: unknown[]
     ): string {
         if (message) {
-            console.error("(JR)", message, error, ...params);
+            console.error("(PF)", message, error, ...params);
             return message;
         } else if (error instanceof Error) {
-            console.error("(JR)", error.message, error, ...params);
+            console.error("(PF)", error.message, error, ...params);
             return error.message;
         }
-        console.error("(JR)", error, ...params);
+        console.error("(PF)", error, ...params);
         return String(error);
     }
 
     logDebug(message: string, ...params: unknown[]): void {
         if (this.settings?.debugLogging) {
-            console.debug("(JR)", message, ...params);
+            console.debug("(PF)", message, ...params);
         }
     }
 
     private logLlmRequest(payload: unknown): void {
         if (this.settings?.showLlmRequests) {
-            console.debug("(JR)[LLM Request]", payload);
+            console.debug("(PF)[LLM Request]", payload);
         }
     }
 }

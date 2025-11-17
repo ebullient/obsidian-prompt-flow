@@ -1,3 +1,3 @@
-import { JournalReflectPlugin } from "./journal-Plugin";
+import { PromptFlowPlugin } from "./pflow-Plugin";
 
-export default JournalReflectPlugin;
+export default PromptFlowPlugin;

@@ -28,7 +28,7 @@ export default defineConfig([
             "obsidianmd/ui/sentence-case": [
                 "warn",
                 {
-                    brands: ["Ollama", "Journal Reflect", "http://localhost:11434", "llama3.1"],
+                    brands: ["Ollama", "Prompt Flow", "http://localhost:11434", "llama3.1"],
                     acronyms: ["JR", "MCP", "URL", "LLM", "AI"],
                     enforceCamelCaseLower: true,
                 },

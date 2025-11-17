@@ -1,6 +1,6 @@
-# Journal Reflect
+# Prompt Flow
 
-An Obsidian plugin that uses local AI (Ollama) to generate thoughtful reflection questions while journaling.
+Generate AI content in Obsidian using your local Ollama instance. Features custom prompts, content filters, and an API for advanced integrations.
 
 > **Important Notes**
 >
@@ -10,13 +10,12 @@ An Obsidian plugin that uses local AI (Ollama) to generate thoughtful reflection
 
 ## Features
 
-- **AI-Powered Reflections**: Uses your local Ollama instance to generate personalized reflection questions
-- **Smart Insertion**: Add reflections at your cursor position with intelligent formatting
-- **Privacy-First**: All processing happens locally using your own Ollama instance
+- **AI-Powered Content Generation**: Uses your local Ollama instance to generate personalized content based on custom prompts
+- **Smart Insertion**: Add generated content at your cursor position
 - **Customizable Prompts**: Configure system prompts, model selection, and per-note overrides
 - **Link Expansion**: Optionally include content from `[[wikilinks]]` in your prompts
 - **Content Filtering**: Exclude specific callout types or link patterns from processing
-- **External Filter API**: Register custom content filters via `window.journal.filters`
+- **External Filter API**: Register custom content filters via `window.promptFlow.filters`
 
 ## Requirements
 
@@ -28,9 +27,9 @@ An Obsidian plugin that uses local AI (Ollama) to generate thoughtful reflection
 ### Manual Installation
 
 1. Download the latest release from GitHub
-2. Extract the files to your vault's `.obsidian/plugins/journal-reflect/` directory
+2. Extract the files to your vault's `.obsidian/plugins/prompt-flow/` directory
 3. Reload Obsidian
-4. Enable "Journal Reflect" in Settings → Community Plugins
+4. Enable "Prompt Flow" in Settings → Community Plugins
 
 ### Building from Source
 
@@ -40,7 +39,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
 
 1. Install and start Ollama on your machine
 2. Pull a model: `ollama pull llama3.1`
-3. In Obsidian, go to Settings → Journal Reflect
+3. In Obsidian, go to Settings → Prompt Flow
 4. Configure your Ollama URL (default: `http://localhost:11434`)
 5. Set your default model name (e.g., `llama3.1`)
 6. Test the connection using the test button
@@ -50,14 +49,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
 ### Basic Usage
 
 1. Open a note in Obsidian
-2. Position your cursor where you want the reflection to appear
+2. Position your cursor where you want the prompt response to appear
 3. Open the command palette (Cmd/Ctrl + P)
-4. Run: **Generate reflection question**
-5. The AI-generated reflection appears as a blockquote at your cursor
+4. Run: **Generate `<prompt name>`** (e.g., "Generate reflection question")
+5. The AI-generated content will be inserted as a blockquote (by default) at your cursor
 
 ### Configuring Prompts
 
-In Settings → Journal Reflect → Prompts:
+In Settings → Prompt Flow → Prompts:
 
 - **Add new prompt**: Create custom prompt configurations
 - **Display label**: The name shown in commands and notifications
@@ -67,30 +66,15 @@ For each prompt, a command is automatically created: `Generate [prompt name]`
 
 ### Per-Note Prompt Overrides
 
-Override prompts on a per-document basis using frontmatter.
-
-**Prompt Resolution Priority:**
-
-1. `prompt` in frontmatter (highest priority)
-2. `prompt-file` in frontmatter
-3. Prompt file defined in plugin configuration
-4. Built-in default prompt (fallback)
-
-#### Option 1: Direct prompt in frontmatter
-
-```yaml
----
-prompt: "You are a creative writing coach. Generate questions that help explore character motivations and plot development."
----
-```
-
-#### Option 2: Reference a prompt file
+You can override the default prompt file on a per-note basis using frontmatter:
 
 ```yaml
 ---
 prompt-file: "prompts/creative-writing-coach.md"
 ---
 ```
+
+Without this override, the plugin uses the prompt file configured in plugin settings for that command.
 
 ### Prompt File Configuration
 
@@ -125,18 +109,18 @@ day.
 - `includeLinks`: Auto-expand `[[wikilinks]]` to include linked content (default: false)
 - `excludePatterns`: Array of regex patterns to exclude links
 - `excludeCalloutTypes`: Array of callout types to filter from content
-- `filters`: Array of filter function names from `window.journal.filters`
+- `filters`: Array of filter function names from `window.promptFlow.filters`
 - `wrapInBlockquote`: Format output as blockquote (default: true)
 - `calloutHeading`: Heading text for callout-style formatting
 - `replaceSelectedText`: Replace selected text instead of inserting (default: false)
 
 ### Continuous Conversations
 
-When `isContinuous` is `true`, the plugin maintains conversation context for each prompt/note combination. This allows follow-up questions to build on previous exchanges. Context is automatically cleared after 30 minutes of inactivity.
+When `isContinuous` is `true`, the plugin maintains conversation context for each prompt/note combination. This allows follow-up prompts to build on previous exchanges. Context is automatically cleared after 30 minutes of inactivity.
 
 ### Link Expansion
 
-When `includeLinks` is enabled, the plugin automatically includes content from `[[wikilinks]]` and embeds in your note. This provides the AI with broader context.
+When `includeLinks` is enabled, the plugin automatically includes content from `[[wikilinks]]` and embedded files in your note. This provides the AI with broader context.
 
 **Link filtering:**
 
@@ -144,16 +128,16 @@ Configure global exclude patterns in Settings → Link filtering, or use `exclud
 
 ### Advanced: External Filter API
 
-The plugin exposes `window.journal.filters` for external scripts (CustomJS, other plugins) to register content transformation functions.
+The plugin exposes `window.promptFlow.filters` for external scripts (CustomJS, other plugins) to register content transformation functions.
 
 **Example filter registration:**
 
 ```javascript
 // In a CustomJS script or another plugin
-window.journal = window.journal || {};
-window.journal.filters = window.journal.filters || {};
+window.promptFlow = window.promptFlow || {};
+window.promptFlow.filters = window.promptFlow.filters || {};
 
-window.journal.filters.redactSecrets = (content) => {
+window.promptFlow.filters.redactSecrets = (content) => {
     return content.replace(/password:\s*\S+/gi, "password: ***");
 };
 ```
@@ -179,7 +163,7 @@ Filters are applied sequentially in the order specified before sending content t
 
 ### Link Filtering
 
-- **Exclude link patterns**: Regex patterns to skip links (one per line). Matched against markdown format: `[display text](link target)`
+- **Exclude link patterns**: Regex patterns to skip specific links (one per line). Patterns are matched against the markdown format: `[display text](link target)`
 
 ### Debug Options
 
@@ -205,11 +189,12 @@ Filters are applied sequentially in the order specified before sending content t
 - Pull a model: `ollama pull llama3.1`
 - Verify models are installed: `ollama list`
 
-**Reflection not appearing:**
+**Generated content not appearing:**
 
 - Check cursor position (must be in edit mode)
 - Review console for errors (Cmd/Ctrl + Shift + I)
 - Enable debug logging in settings
+- Be patient. If you're sending a lot of data, it can take a bit.
 
 ## Development
 

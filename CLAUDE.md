@@ -2,7 +2,8 @@
 
 **For complete build commands, architecture overview, and development guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).**
 
-This project is an Obsidian plugin for AI-powered journal reflection using Ollama. **Read [README.md](README.md) for feature details and usage instructions.**
+This project is an Obsidian plugin for local AI content generation using Ollama.
+**Read [README.md](README.md) for feature details and usage instructions.**
 
 ## Your Role
 
@@ -27,7 +28,7 @@ You are a senior development peer working alongside a Senior Software Engineer o
 - **Method chaining**: Always break at dots, even for single chains
 - **Error handling**: `try/catch` with user-friendly `Notice` messages
 - **Async**: Use `async/await` consistently
-- **Naming**: Follow the `journal-` prefix pattern for source files
+- **Naming**: Follow the `pflow-` prefix pattern for source files
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed code style guidelines and examples.
 

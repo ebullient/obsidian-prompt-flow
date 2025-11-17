@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { OllamaClient } from "../src/journal-OllamaClient";
+import { OllamaClient } from "../src/pflow-OllamaClient";
 import { Logger } from "../src/@types";
 
 // Integration test for OllamaClient

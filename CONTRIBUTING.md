@@ -1,17 +1,17 @@
-# Contributing to Journal Reflect
+# Contributing to Prompt Flow
 
-An Obsidian plugin that uses local AI (Ollama) to generate thoughtful
-reflection questions while journaling.
+An Obsidian plugin that uses local AI (Ollama) to generate content based on
+customizable prompts and your note context.
 
 ## Project Structure
 
 This is a TypeScript Obsidian plugin with the following core files:
 
-- **journal-Plugin.ts**: Main plugin class
-- **journal-OllamaClient.ts**: HTTP client for Ollama API
-- **journal-SettingsTab.ts**: Settings UI
-- **journal-Constants.ts**: Default settings and configuration
-- **journal-Utils.ts**: Utility functions for prompt processing
+- **pflow-Plugin.ts**: Main plugin class
+- **pflow-OllamaClient.ts**: HTTP client for Ollama API
+- **pflow-SettingsTab.ts**: Settings UI
+- **pflow-Constants.ts**: Default settings and configuration
+- **pflow-Utils.ts**: Utility functions for prompt processing
 
 ## Build Commands
 
@@ -43,7 +43,7 @@ Set the `OUTDIR` environment variable to your test vault's plugin directory
 for automatic deployment during development:
 
 ```bash
-export OUTDIR="/path/to/vault/.obsidian/plugins/journal-reflect"
+export OUTDIR="/path/to/vault/.obsidian/plugins/prompt-flow"
 npm run dev
 ```
 
@@ -91,7 +91,7 @@ instance (default: `http://localhost:11434`).
 
 - **Error handling**: Use `try/catch` with user-friendly `Notice` messages
 - **Async**: Use `async/await` consistently
-- **Naming**: Follow the `journal-` prefix pattern for all source files
+- **Naming**: Follow the `pflow-` prefix pattern for all source files
 
 ## Development Patterns
 
@@ -109,9 +109,7 @@ When implementing new features:
 
 ### Local AI Integration
 
-The plugin integrates with Ollama, a local LLM runtime, to generate
-reflection questions. This ensures complete privacy - no data leaves your
-machine.
+The plugin integrates with Ollama to generate content based on customizable prompts.
 
 **Key architectural decisions:**
 
@@ -125,14 +123,9 @@ machine.
 
 ### Prompt Resolution System
 
-The plugin implements a three-tier prompt resolution system:
+The plugin loads prompts from markdown files. Each note can specify which prompt file to use via the `prompt-file` frontmatter key, or the plugin falls back to the prompt file configured in settings.
 
-1. **Direct frontmatter prompt**: `prompt` key in note frontmatter (highest
-   priority)
-2. **Referenced prompt file**: `prompt-file` key pointing to a markdown file
-3. **Plugin settings**: Default prompt configured in settings (fallback)
-
-Prompt files can include their own frontmatter to override model parameters:
+Prompt files include frontmatter to configure model parameters and behavior:
 
 - `model`: Specific Ollama model to use
 - `num_ctx`: Context window size
@@ -158,7 +151,7 @@ Prompt files can include their own frontmatter to override model parameters:
 
 ### Pre-Filter API
 
-The plugin exposes `window.journal.filters` for external scripts (CustomJS,
+The plugin exposes `window.promptFlow.filters` for external scripts (CustomJS,
 other plugins) to register content transformation functions. This allows
 advanced users to:
 
