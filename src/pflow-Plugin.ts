@@ -7,12 +7,7 @@ import {
     Plugin,
     TFile,
 } from "obsidian";
-import type {
-    FileToProcess,
-    Logger,
-    PromptFlowSettings,
-    ResolvedPrompt,
-} from "./@types";
+import type { Logger, PromptFlowSettings, ResolvedPrompt } from "./@types";
 import { DEFAULT_PROMPT, DEFAULT_SETTINGS } from "./pflow-Constants";
 import { OllamaClient } from "./pflow-OllamaClient";
 import { PromptFlowSettingsTab } from "./pflow-SettingsTab";
@@ -32,6 +27,15 @@ import "./window-type";
 
 const CONTEXT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const CONTEXT_REAP_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
+
+const MAX_DEPTH = 2;
+type EmbeddedLink = {
+    subpaths: Set<string>; // headings, blockrefs
+    hasFullReference: boolean;
+    file: TFile | null; // null for unresolved links
+    depth: number;
+};
+type EmbeddedNotes = Map<string, EmbeddedLink>;
 
 export class PromptFlowPlugin extends Plugin implements Logger {
     settings!: PromptFlowSettings;
@@ -182,8 +186,8 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         const expandedDocContent = await this.expandLinkedFiles(
             activeNote,
             docContent,
-            resolved.includeLinks ?? false,
             resolved.excludePatterns,
+            resolved.includeLinks ?? false,
         );
 
         const filteredDocContent = filterCallouts(
@@ -435,7 +439,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
                     frontmatter?.replaceSelectedText,
                 );
 
-                // Strip frontmatter from content
+                // Strip frontmatter from prompt content
                 const promptText = this.stripFrontmatter(promptContent);
                 return {
                     prompt: promptText,
@@ -472,94 +476,168 @@ export class PromptFlowPlugin extends Plugin implements Logger {
     }
 
     private async expandLinkedFiles(
-        sourceFile: TFile | null,
+        sourceFile: TFile,
         content: string,
+        excludePatterns: RegExp[] = [],
         includeLinks = false,
-        pathPatterns: RegExp[] = [],
     ): Promise<string> {
-        if (!sourceFile) {
+        let fileCache = this.app.metadataCache.getFileCache(sourceFile);
+        if (!fileCache) {
             return content;
         }
 
+        const seenLinks: EmbeddedNotes = new Map();
+        const fileQueue: EmbeddedLink[] = [];
+
         // Track seen files to prevent duplicates (using normalized TFile paths)
-        const seenLinks = new Set<string>();
-        seenLinks.add(sourceFile.path);
+        const origin = {
+            hasFullReference: true,
+            subpaths: new Set<string>(),
+            file: sourceFile,
+            depth: 0,
+        };
+        seenLinks.set(sourceFile.path, origin);
+        fileQueue.push(origin);
 
-        // Queue of files to process
-        const fileQueue: FileToProcess[] = [
-            {
-                file: sourceFile,
-                linkText: sourceFile.path,
-                fileContent: content,
-            },
-        ];
+        // Phase 1: Process queue breadth-first
+        // We are not gathering content at this time: we're only resolving
+        // files and links.
+        let embeddedLink = fileQueue.shift();
+        while (embeddedLink) {
+            // Skip if file wasn't found (null) or max depth reached
+            if (!embeddedLink.file || embeddedLink.depth >= MAX_DEPTH) {
+                embeddedLink = fileQueue.shift();
+                continue;
+            }
 
-        let expandedContent = "";
-
-        // Process queue breadth-first
-        let fileToProcess = fileQueue.shift();
-        while (fileToProcess) {
-            const { file, linkText, fileContent, subpath } = fileToProcess;
-
-            this.logDebug("Processing file", file.path, linkText);
-
-            // Extract content (apply subpath if needed)
-            const extractedContent = subpath
-                ? this.extractSubpathContent(file, fileContent, subpath)
-                : fileContent;
-
-            // Append to output with sentinels
-            expandedContent += `\n===== BEGIN ENTRY: ${linkText} =====\n${extractedContent}\n===== END ENTRY =====\n\n`;
-
-            // Discover links from this file
-            const fileCache = this.app.metadataCache.getFileCache(file);
+            fileCache = this.app.metadataCache.getFileCache(embeddedLink.file);
             if (fileCache) {
+                // Process both links and embeds
+                // Only include regular links if includeLinks is true
                 const allLinks = [
                     ...(includeLinks ? fileCache.links || [] : []),
                     ...(fileCache.embeds || []),
                 ].filter((link) => link);
 
                 for (const cachedLink of allLinks) {
-                    if (!this.shouldExcludeLink(cachedLink, pathPatterns)) {
-                        // Resolve and queue the target file
-                        const { path, subpath: linkSubpath } =
-                            parseLinkReference(cachedLink.link);
-                        const targetFile =
-                            this.app.metadataCache.getFirstLinkpathDest(
-                                path,
-                                file.path,
-                            );
+                    // Skip if link matches exclusion patterns
+                    if (this.shouldExcludeLink(cachedLink, excludePatterns)) {
+                        continue;
+                    }
 
-                        if (targetFile && !seenLinks.has(targetFile.path)) {
-                            seenLinks.add(targetFile.path);
+                    // Skip duplicate unresolved links (resolved links are
+                    // deduplicated later by file path)
+                    const linkKey = cachedLink.link;
+                    if (seenLinks.has(linkKey)) {
+                        continue; // unresolved link seen before
+                    }
 
-                            try {
-                                const linkedContent =
-                                    await this.app.vault.cachedRead(targetFile);
-                                fileQueue.push({
-                                    file: targetFile,
-                                    linkText: cachedLink.link,
-                                    fileContent: linkedContent,
-                                    subpath: linkSubpath ?? undefined,
-                                });
-                            } catch (error) {
-                                this.logWarn(
-                                    "Could not read linked file",
-                                    cachedLink.link,
-                                    error,
-                                );
-                            }
-                        }
+                    // Parse link to extract path and subpath
+                    const { path, subpath } = parseLinkReference(
+                        cachedLink.link,
+                    );
+                    const targetFile =
+                        this.app.metadataCache.getFirstLinkpathDest(
+                            path,
+                            embeddedLink.file.path,
+                        );
+
+                    if (!targetFile) {
+                        this.logDebug(
+                            `Link target not found: ${cachedLink.link} ` +
+                                `(from ${embeddedLink.file.path})`,
+                        );
+                        // Add to seen list to avoid checking again (but don't queue)
+                        seenLinks.set(linkKey, {
+                            hasFullReference: false,
+                            subpaths: new Set<string>(),
+                            file: null,
+                            depth: embeddedLink.depth + 1,
+                        });
+                        continue; // to next link
+                    }
+
+                    const key = targetFile.path;
+                    let ref = seenLinks.get(key);
+                    if (!ref) {
+                        // create ref if missing
+                        ref = {
+                            hasFullReference: false,
+                            subpaths: new Set<string>(),
+                            file: targetFile,
+                            depth: embeddedLink.depth + 1,
+                        };
+                        seenLinks.set(key, ref);
+                        fileQueue.push(ref); // new link to visit
+                        this.logDebug(
+                            "Link",
+                            embeddedLink.file.path,
+                            " ➡ ",
+                            targetFile.path,
+                        );
+                    }
+
+                    // Track subpath or full file reference
+                    if (!subpath) {
+                        ref.hasFullReference = true;
+                    } else {
+                        ref.subpaths.add(subpath);
                     }
                 }
             }
-
-            fileToProcess = fileQueue.shift();
+            embeddedLink = fileQueue.shift();
         }
 
-        return expandedContent;
+        // Phase 2: Collect content.
+        // Read each referenced file, and append
+        const expandedContent = [];
+        seenLinks.delete(sourceFile.path); // remove sourcefile
+        this.logDebug(`Collecting content from ${seenLinks.size} linked files`);
+        for (const link of seenLinks.values()) {
+            // Skip null file entries (unresolved links)
+            // and non-markdown files
+            if (!link.file || link.file.extension !== "md") {
+                continue;
+            }
+
+            const fileContent = await this.app.vault.cachedRead(link.file);
+            if (link.hasFullReference) {
+                // emit whole file once
+                expandedContent.push(
+                    `===== BEGIN ENTRY: ${link.file.path} =====`,
+                );
+                expandedContent.push(fileContent);
+                expandedContent.push("===== END ENTRY =====\n");
+            } else {
+                // emit each subpath snippet
+                for (const subpath of link.subpaths) {
+                    expandedContent.push(
+                        `===== BEGIN ENTRY: ${link.file.path}#${subpath} =====`,
+                    );
+                    expandedContent.push(
+                        this.extractSubpathContent(
+                            link.file,
+                            fileContent,
+                            subpath,
+                        ),
+                    );
+                    expandedContent.push("===== END ENTRY =====\n");
+                }
+            }
+        }
+
+        if (expandedContent.length) {
+            return (
+                content +
+                "\n----- EMBEDDED/LINKED CONTENT -----\n" +
+                expandedContent.join("\n")
+            );
+        }
+        return content;
     }
 
+    // Subset of full document content.
+    // If the subpath isn't found, return empty.
     private extractSubpathContent(
         file: TFile,
         fileContent: string,
@@ -567,7 +645,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
     ): string {
         const cache = this.app.metadataCache.getFileCache(file);
         if (!cache) {
-            return fileContent;
+            return "";
         }
 
         // Check for block reference (^block-id)
@@ -575,10 +653,15 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             const blockId = subpath.substring(1);
             const block = cache.blocks?.[blockId];
             if (block) {
-                const lines = fileContent.split("\n");
-                return lines[block.position.start.line] || "";
+                // Extract the full block content using offsets
+                const start = block.position.start.offset;
+                const end = block.position.end.offset;
+                return fileContent.substring(start, end).trim();
             }
-            return fileContent;
+            this.logDebug(
+                `Block reference not found: ^${blockId} in ${file.path}`,
+            );
+            return "";
         }
 
         // Check for heading reference
@@ -604,8 +687,9 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             return fileContent.substring(start, end).trim();
         }
 
-        // If no matching subpath found, return full content
-        return fileContent;
+        // If no matching subpath found, return empty
+        this.logDebug(`Subpath not found: #${subpath} in ${file.path}`);
+        return "";
     }
 
     private applyPrefilters(content: string, filterNames?: string[]): string {
