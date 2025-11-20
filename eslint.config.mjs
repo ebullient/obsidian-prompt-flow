@@ -29,7 +29,7 @@ export default defineConfig([
                 "warn",
                 {
                     brands: ["Ollama", "Prompt Flow", "http://localhost:11434", "llama3.1"],
-                    acronyms: ["JR", "MCP", "URL", "LLM", "AI"],
+                    acronyms: ["MCP", "URL", "LLM", "AI"],
                     enforceCamelCaseLower: true,
                 },
             ],

@@ -23,7 +23,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         ) as PromptFlowSettings;
     }
 
-    async reset() {
+    reset() {
         this.newSettings = this.cloneSettings();
         this.display();
     }
@@ -35,19 +35,15 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
 
         this.containerEl.empty();
 
-        new Setting(this.containerEl).setDesc(
-            "Configure your local Ollama instance for AI-powered journal reflections.",
-        );
-
         new Setting(this.containerEl)
             .setName("Save settings")
             .setClass("pflow-reflect-save-reset")
             .addButton((button) =>
                 button
                     .setIcon("reset")
-                    .setTooltip("Reset to previously saved values")
-                    .onClick(async () => {
-                        await this.reset();
+                    .setTooltip("Reset to previously saved values.")
+                    .onClick(() => {
+                        this.reset();
                     }),
             )
             .addButton((button) => {
@@ -59,13 +55,6 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                         await this.save();
                     });
             });
-
-        new Setting(this.containerEl)
-            .setName("Ollama")
-            .setHeading()
-            .setDesc(
-                "Configure your local Ollama instance for AI-powered journal reflections.",
-            );
 
         const testConnection = async (): Promise<string> => {
             try {
@@ -95,9 +84,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
 
         const connection = new Setting(this.containerEl)
             .setName("Ollama URL")
-            .setDesc(
-                "URL of your Ollama instance (default: http://localhost:11434)",
-            )
+            .setDesc("URL of your Ollama instance")
             .addText((text) =>
                 text
                     .setPlaceholder("http://localhost:11434")
@@ -147,7 +134,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Keep alive")
             .setDesc(
-                "How long to keep model loaded in memory (e.g., '10m', '1h', '-1' for always). Speeds up subsequent requests.",
+                "How long to keep model loaded in memory (e.g., '10m', '1h', '-1' for always) to speed up subsequent requests.",
             )
             .addText((text) =>
                 text
@@ -162,14 +149,14 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             .setName("Prompts")
             .setHeading()
             .setDesc(
-                "For each configured prompt, a command is automatically created: generate [prompt name]. When the command is run, it will send the prompt associated with the command, the current note, and (optionally) the contents of linked notes to the LLM. Generated content is inserted as blockquotes (>) at the current cursor position in the current note.",
+                "Define prompts that can be invoked as commands to generate content using the LLM.",
             );
 
         this.displayPromptConfigs(this.containerEl);
 
         new Setting(this.containerEl)
             .setName("Add new prompt")
-            .setDesc("Add a new prompt configuration")
+            .setDesc("Create a new prompt command for generating content.")
             .addButton((button) =>
                 button
                     .setButtonText("Add prompt")
@@ -184,7 +171,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Exclude link patterns")
             .setDesc(
-                "Skip links that match these patterns (regex, one pattern per line). Links will be matched in markdown format, e.g. [display text](link target).",
+                "Skip links that match these regular expression patterns; specify one pattern per line.",
             )
             .addTextArea((text) =>
                 text
@@ -205,7 +192,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         new Setting(this.containerEl)
             .setName("Show LLM request payloads")
             .setDesc(
-                "When enabled, logs the exact prompt and document text sent to Ollama. Turn off to keep journal content out of the console.",
+                "When enabled, log the exact prompt and document text sent to Ollama.",
             )
             .addToggle((toggle) =>
                 toggle
@@ -217,9 +204,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
 
         new Setting(this.containerEl)
             .setName("Enable debug logging")
-            .setDesc(
-                "Writes verbose plugin events to the developer console. Useful when troubleshooting prompt resolution issues.",
-            )
+            .setDesc("Writes verbose plugin events to the developer console.")
             .addToggle((toggle) =>
                 toggle
                     .setValue(this.newSettings.debugLogging ?? false)
@@ -249,10 +234,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                         }),
                 );
 
-            const checkFile = async (
-                inputEl: HTMLElement,
-                filePath: string,
-            ) => {
+            const checkFile = (inputEl: HTMLElement, filePath: string) => {
                 const exists =
                     this.app.vault.getAbstractFileByPath(filePath) !== null;
                 if (exists) {
@@ -265,24 +247,24 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             new Setting(promptSection)
                 .setName("Prompt file")
                 .setDesc(
-                    "Path to file containing prompt (leave empty to use inline prompt)",
+                    "Path to file containing the prompt and invocation parameters; see documentation for details.",
                 )
                 .addText((text) =>
                     text
                         .setPlaceholder("prompts/my-prompt.md")
                         .setValue(promptConfig.promptFile || "")
-                        .onChange(async (value) => {
+                        .onChange((value) => {
                             const path = value.trim();
                             this.newSettings.prompts[promptKey].promptFile =
                                 path;
-                            await checkFile(text.inputEl, path);
+                            checkFile(text.inputEl, path);
                         }),
                 );
 
             if (promptKey !== "reflection") {
                 new Setting(promptSection)
                     .setName("Remove prompt")
-                    .setDesc("Delete this prompt configuration")
+                    .setDesc("Delete this prompt.")
                     .addButton((button) =>
                         button
                             .setButtonText("Remove")
