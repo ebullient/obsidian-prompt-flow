@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@codemirror/language": "https://github.com/lishid/cm-language",
-    "ollama": "^0.6.0"
+    "ollama": "^0.6.2"
   },
   "auto-changelog": {
     "backfillLimit": false,
