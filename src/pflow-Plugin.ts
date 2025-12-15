@@ -259,6 +259,13 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             resolved.filters,
         );
 
+        // Insert placeholder and start animation
+        const placeholderInfo = this.insertPlaceholder(
+            editor,
+            resolved,
+            activeNote,
+        );
+
         const content = await this.getGeneratedContent(
             processedContent,
             resolved,
@@ -266,44 +273,149 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             activeNote,
         );
 
-        if (content) {
-            this.insertContent(editor, content, promptKey, resolved);
+        // Stop animation and replace placeholder
+        if (placeholderInfo) {
+            this.stopPlaceholderAnimation(placeholderInfo.intervalId);
+        }
+
+        // Check if file is still the same in this editor before inserting
+        if (content && placeholderInfo) {
+            const currentFile = ctx.file;
+            if (currentFile && currentFile.path === activeNote.path) {
+                this.replacePlaceholder(
+                    editor,
+                    placeholderInfo,
+                    content,
+                    promptKey,
+                    resolved,
+                );
+            } else {
+                // File changed - placeholder stays as evidence
+                this.logDebug(
+                    "File changed during generation, leaving placeholder",
+                );
+            }
+        } else if (placeholderInfo) {
+            // Remove placeholder if generation failed
+            this.removePlaceholder(editor, placeholderInfo);
         }
     }
 
-    private insertContent(
+    private insertPlaceholder(
         editor: Editor,
+        resolved: ResolvedPrompt,
+        activeNote: TFile,
+    ): {
+        startLine: number;
+        endLine: number;
+        currentFrame: number;
+        intervalId: number;
+        filePath: string;
+    } | null {
+        const cursor = editor.getCursor();
+        const currentLine = editor.getLine(cursor.line);
+        const isEmptyLine = currentLine.trim() === "";
+
+        const wrapInBlockquote = resolved.wrapInBlockquote ?? true;
+        const prefix = wrapInBlockquote ? "> " : "";
+        const frames = ["✻", "✼", "✽", "✼"];
+        const initialPlaceholder = `${prefix}Thinking ${frames[0]}`;
+
+        const insertText = isEmptyLine
+            ? `${initialPlaceholder}\n\n`
+            : `\n\n${initialPlaceholder}\n\n`;
+
+        const startLine = isEmptyLine ? cursor.line : cursor.line + 2;
+        const endLine = startLine;
+
+        editor.replaceSelection(insertText);
+
+        // Animate the placeholder, but stop if file changes
+        let currentFrame = 0;
+        const intervalId = window.setInterval(() => {
+            currentFrame = (currentFrame + 1) % frames.length;
+            const newPlaceholder = `${prefix}Thinking ${frames[currentFrame]}`;
+
+            try {
+                const line = editor.getLine(startLine);
+                if (line?.includes("Thinking")) {
+                    editor.setLine(startLine, newPlaceholder);
+                }
+            } catch (_error) {
+                // Line might not exist anymore, stop animation
+                window.clearInterval(intervalId);
+            }
+        }, 150);
+
+        return {
+            startLine,
+            endLine,
+            currentFrame,
+            intervalId,
+            filePath: activeNote.path,
+        };
+    }
+
+    private stopPlaceholderAnimation(intervalId: number): void {
+        window.clearInterval(intervalId);
+    }
+
+    private replacePlaceholder(
+        editor: Editor,
+        placeholderInfo: {
+            startLine: number;
+            endLine: number;
+            currentFrame: number;
+            intervalId: number;
+            filePath: string;
+        },
         content: string,
         promptKey: string,
         resolved: ResolvedPrompt,
     ): void {
         const wrapInBlockquote = resolved.wrapInBlockquote ?? true;
         const calloutHeading = resolved.calloutHeading;
-        const replaceSelectedText = resolved.replaceSelectedText ?? false;
 
         const formattedContent = wrapInBlockquote
             ? formatAsBlockquote(content, calloutHeading)
             : content;
 
+        // Replace the placeholder line(s) with the actual content
+        const startPos = { line: placeholderInfo.startLine, ch: 0 };
+        const endPos = {
+            line: placeholderInfo.endLine,
+            ch: editor.getLine(placeholderInfo.endLine).length,
+        };
+
+        editor.replaceRange(formattedContent, startPos, endPos);
+
         const displayLabel =
             this.settings.prompts[promptKey]?.displayLabel || promptKey;
-
-        if (replaceSelectedText && editor.somethingSelected()) {
-            editor.replaceSelection(formattedContent);
-            new Notice(`Replaced selection with ${displayLabel}`);
-            return;
-        }
-
-        const cursor = editor.getCursor();
-        const currentLine = editor.getLine(cursor.line);
-        const isEmptyLine = currentLine.trim() === "";
-
-        const insertText = isEmptyLine
-            ? `${formattedContent}\n\n`
-            : `\n\n${formattedContent}\n\n`;
-
-        editor.replaceSelection(insertText);
         new Notice(`Inserted ${displayLabel}`);
+    }
+
+    private removePlaceholder(
+        editor: Editor,
+        placeholderInfo: {
+            startLine: number;
+            endLine: number;
+            currentFrame: number;
+            intervalId: number;
+            filePath: string;
+        },
+    ): void {
+        try {
+            const startPos = { line: placeholderInfo.startLine, ch: 0 };
+            const endLine = Math.min(
+                placeholderInfo.endLine + 2,
+                editor.lastLine(),
+            );
+            const endPos = { line: endLine, ch: 0 };
+
+            editor.replaceRange("", startPos, endPos);
+        } catch (_error) {
+            // Placeholder might already be gone
+        }
     }
 
     private shouldExcludeLink(
