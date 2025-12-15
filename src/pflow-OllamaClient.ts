@@ -1,32 +1,19 @@
-import { Notice, requestUrl } from "obsidian";
 import type {
     GenerateRequest,
     GenerateResponse,
     ListResponse,
 } from "ollama/browser";
-import type {
-    GenerateOptions,
-    GenerateResult,
-    IOllamaClient,
-    Logger,
-} from "./@types";
+import type { GenerateOptions, GenerateResult, Logger } from "./@types";
+import { LLMBaseClient } from "./pflow-LLMBaseClient";
 
-export class OllamaClient implements IOllamaClient {
-    private baseUrl: string;
-    private logger: Logger;
-
-    constructor(baseUrl: string, logger: Logger) {
-        this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
-        this.logger = logger;
-    }
-
+export class OllamaClient extends LLMBaseClient {
     async generate(
         model: string,
         systemPrompt: string,
         documentText: string,
         options?: GenerateOptions,
     ): Promise<GenerateResult> {
-        try {
+        return this.handleGenerateRequest(async () => {
             const generateRequest: GenerateRequest = {
                 model: model,
                 prompt: documentText,
@@ -61,7 +48,7 @@ export class OllamaClient implements IOllamaClient {
             }
 
             this.logger.logDebug("Send request to", this.baseUrl);
-            const response = await requestUrl({
+            const response = await this.executeRequest({
                 url: `${this.baseUrl}/api/generate`,
                 method: "POST",
                 contentType: "application/json",
@@ -73,31 +60,34 @@ export class OllamaClient implements IOllamaClient {
                 response: data.response?.trim() ?? null,
                 context: data.context,
             };
-        } catch (error) {
-            const errorMsg = this.logger.logError(
-                error,
-                "Error calling Ollama API: ",
-            );
-            new Notice(`Ollama API error: ${errorMsg}`);
-            return { response: null };
-        }
+        }, "Ollama");
     }
 
     async checkConnection(): Promise<boolean> {
         try {
-            await requestUrl({
+            this.logger.logDebug("Checking connection to", this.baseUrl);
+            const response = await this.executeRequest({
                 url: `${this.baseUrl}/api/tags`,
                 method: "GET",
             });
+            this.logger.logDebug(
+                "Connection check successful, status:",
+                response.status,
+            );
             return true;
-        } catch {
+        } catch (error) {
+            this.logger.logError(
+                error,
+                "Connection check failed for",
+                this.baseUrl,
+            );
             return false;
         }
     }
 
     async listModels(): Promise<string[]> {
         try {
-            const response = await requestUrl({
+            const response = await this.executeRequest({
                 url: `${this.baseUrl}/api/tags`,
                 method: "GET",
             });

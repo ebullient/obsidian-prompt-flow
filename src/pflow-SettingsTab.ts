@@ -1,6 +1,10 @@
 import { type App, PluginSettingTab, Setting } from "obsidian";
-import type { PromptConfig, PromptFlowSettings } from "./@types";
-import { OllamaClient } from "./pflow-OllamaClient";
+import type {
+    ConnectionConfig,
+    PromptConfig,
+    PromptFlowSettings,
+} from "./@types";
+import { createLLMClient } from "./pflow-LLMClientFactory";
 import type { PromptFlowPlugin } from "./pflow-Plugin";
 
 export class PromptFlowSettingsTab extends PluginSettingTab {
@@ -56,92 +60,35 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                     });
             });
 
-        const testConnection = async (): Promise<string> => {
-            try {
-                // Create temporary client with current form settings
-                const tempClient = new OllamaClient(
-                    this.newSettings.ollamaUrl,
-                    this.plugin,
-                );
-                const isConnected = await tempClient.checkConnection();
+        new Setting(this.containerEl).setName("Connections").setHeading();
 
-                if (isConnected) {
-                    const models = await tempClient.listModels();
-                    return models.length > 0
-                        ? `✅ Connected to Ollama | Available models: ${models.join(", ")}`
-                        : "✅ Connected to Ollama | no models found";
-                } else {
-                    return "❌ Cannot connect to Ollama";
+        new Setting(this.containerEl)
+            .setName("Default connection")
+            .setDesc("Connection to use when prompt doesn't specify one")
+            .addDropdown((dropdown) => {
+                for (const key of Object.keys(this.newSettings.connections)) {
+                    dropdown.addOption(key, key);
                 }
-            } catch (error) {
-                const errorMsg = this.plugin.logError(
-                    error,
-                    "❌ Cannot connect to Ollama",
-                );
-                return `❌ Cannot connect to Ollama: ${errorMsg}`;
-            }
-        };
-
-        const connection = new Setting(this.containerEl)
-            .setName("Ollama URL")
-            .setDesc("URL of your Ollama instance")
-            .addText((text) =>
-                text
-                    .setPlaceholder("http://localhost:11434")
-                    .setValue(this.newSettings.ollamaUrl)
+                dropdown
+                    .setValue(this.newSettings.defaultConnection)
                     .onChange((value) => {
-                        const trimmed = value.trim();
-                        if (trimmed && !trimmed.startsWith("http")) {
-                            // Auto-prepend http:// if user forgets protocol
-                            this.newSettings.ollamaUrl = `http://${trimmed}`;
-                        } else {
-                            this.newSettings.ollamaUrl = trimmed;
-                        }
-                    }),
-            )
-            .addButton((bc) =>
-                bc
-                    .setTooltip("Test connection")
-                    .setIcon("cable")
-                    .onClick(async (_e) => {
-                        bc.setTooltip("Testing...");
-                        bc.setDisabled(true);
+                        this.newSettings.defaultConnection = value;
+                    });
+            });
 
-                        const message = await testConnection();
-                        connection.setDesc(
-                            `${this.newSettings.ollamaUrl} - ${message}`,
-                        );
-
-                        bc.setTooltip("Test connection");
-                        bc.setDisabled(false);
-                    }),
-            );
+        this.displayConnectionConfigs(this.containerEl);
 
         new Setting(this.containerEl)
-            .setName("Model name")
+            .setName("Add new connection")
             .setDesc(
-                "Name of the default Ollama model to use (e.g., llama3.1, mistral)",
+                "Create a new LLM connection (Ollama or OpenAI-compatible)",
             )
-            .addText((text) =>
-                text
-                    .setPlaceholder("llama3.1")
-                    .setValue(this.newSettings.modelName)
-                    .onChange((value) => {
-                        this.newSettings.modelName = value.trim();
-                    }),
-            );
-
-        new Setting(this.containerEl)
-            .setName("Keep alive")
-            .setDesc(
-                "How long to keep model loaded in memory (e.g., '10m', '1h', '-1' for always) to speed up subsequent requests.",
-            )
-            .addText((text) =>
-                text
-                    .setPlaceholder("10m")
-                    .setValue(this.newSettings.keepAlive)
-                    .onChange((value) => {
-                        this.newSettings.keepAlive = value.trim();
+            .addButton((button) =>
+                button
+                    .setButtonText("Add connection")
+                    .setCta()
+                    .onClick(() => {
+                        this.addNewConnection();
                     }),
             );
 
@@ -214,6 +161,226 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             );
     }
 
+    displayConnectionConfigs(containerEl: HTMLElement): void {
+        for (const [connKey, connConfig] of Object.entries(
+            this.newSettings.connections,
+        )) {
+            const connSection = containerEl.createEl("div", {
+                cls: "setting-item-group pflow-reflect-prompt-config",
+            });
+
+            new Setting(connSection)
+                .setName("Connection ID")
+                .setDesc(
+                    "Unique identifier for this connection (used in prompt frontmatter)",
+                )
+                .addText((text) =>
+                    text
+                        .setValue(connKey)
+                        .setPlaceholder("my-connection")
+                        .onChange((value) => {
+                            const newKey = value.trim();
+                            if (newKey && newKey !== connKey) {
+                                // Rename the connection key
+                                this.newSettings.connections[newKey] =
+                                    this.newSettings.connections[connKey];
+                                delete this.newSettings.connections[connKey];
+
+                                // Update default connection if needed
+                                if (
+                                    this.newSettings.defaultConnection ===
+                                    connKey
+                                ) {
+                                    this.newSettings.defaultConnection = newKey;
+                                }
+
+                                // Update prompts that reference this connection
+                                for (const promptKey of Object.keys(
+                                    this.newSettings.prompts,
+                                )) {
+                                    if (
+                                        this.newSettings.prompts[promptKey]
+                                            .connection === connKey
+                                    ) {
+                                        this.newSettings.prompts[
+                                            promptKey
+                                        ].connection = newKey;
+                                    }
+                                }
+
+                                this.display();
+                            }
+                        }),
+                );
+
+            new Setting(connSection)
+                .setName("Provider type")
+                .setDesc("Local Ollama or OpenAI-compatible API")
+                .addDropdown((dropdown) =>
+                    dropdown
+                        .addOption("ollama", "Ollama")
+                        .addOption("openai-compatible", "OpenAI-Compatible")
+                        .setValue(connConfig.provider)
+                        .onChange((value) => {
+                            this.newSettings.connections[connKey].provider =
+                                value as "ollama" | "openai-compatible";
+                            this.display();
+                        }),
+                );
+
+            const urlSettingText = "API endpoint URL";
+            const testSetting = new Setting(connSection)
+                .setName("Base URL")
+                .setDesc(urlSettingText)
+                .addText((text) =>
+                    text
+                        .setPlaceholder("http://localhost:11434")
+                        .setValue(connConfig.baseUrl)
+                        .onChange((value) => {
+                            const trimmed = value.trim();
+                            if (trimmed && !trimmed.startsWith("http")) {
+                                this.newSettings.connections[connKey].baseUrl =
+                                    `http://${trimmed}`;
+                            } else {
+                                this.newSettings.connections[connKey].baseUrl =
+                                    trimmed;
+                            }
+                        }),
+                )
+                .addButton((bc) =>
+                    bc
+                        .setIcon("cable")
+                        .setTooltip("Test connection")
+                        .onClick(async () => {
+                            bc.setDisabled(true);
+                            testSetting.setDesc(
+                                `${urlSettingText} — Connecting...`,
+                            );
+
+                            try {
+                                const message = await testConnection(
+                                    this.newSettings.connections[connKey],
+                                    connKey,
+                                );
+                                testSetting.setDesc(
+                                    `${urlSettingText} — ${message}`,
+                                );
+                            } catch (error) {
+                                const errorMsg = this.plugin.logError(
+                                    error,
+                                    "Test connection failed",
+                                );
+                                testSetting.setDesc(
+                                    `${urlSettingText} — ❌ Error: ${errorMsg}`,
+                                );
+                            } finally {
+                                bc.setDisabled(false);
+                            }
+                        }),
+                );
+
+            if (connConfig.provider === "openai-compatible") {
+                new Setting(connSection)
+                    .setName("API Key")
+                    .setDesc("Authentication key for the API")
+                    .addText((text) => {
+                        text.inputEl.type = "password";
+                        text.setValue(connConfig.apiKey || "").onChange(
+                            (value) => {
+                                this.newSettings.connections[connKey].apiKey =
+                                    value.trim();
+                            },
+                        );
+                    });
+            }
+
+            new Setting(connSection)
+                .setName("Default model")
+                .setDesc("Model name to use by default (optional)")
+                .addText((text) =>
+                    text
+                        .setPlaceholder("llama3.1")
+                        .setValue(connConfig.defaultModel || "")
+                        .onChange((value) => {
+                            this.newSettings.connections[connKey].defaultModel =
+                                value.trim();
+                        }),
+                );
+
+            if (connConfig.provider === "ollama") {
+                new Setting(connSection)
+                    .setName("Keep alive (ollama)")
+                    .setDesc("How long to keep model in memory")
+                    .addText((text) =>
+                        text
+                            .setPlaceholder("10m")
+                            .setValue(connConfig.keepAlive || "")
+                            .onChange((value) => {
+                                this.newSettings.connections[
+                                    connKey
+                                ].keepAlive = value.trim();
+                            }),
+                    );
+            }
+
+            const testConnection = async (
+                conn: ConnectionConfig,
+                connKey: string,
+            ): Promise<string> => {
+                try {
+                    this.plugin.logInfo(
+                        "Testing connection:",
+                        connKey,
+                        conn.provider,
+                        conn.baseUrl,
+                    );
+
+                    const client = createLLMClient(conn, this.plugin, () =>
+                        this.plugin.saveSettings(),
+                    );
+                    this.plugin.logInfo("Client created successfully");
+
+                    const isConnected = await client.checkConnection();
+                    this.plugin.logInfo(
+                        "Connection check result:",
+                        isConnected,
+                    );
+
+                    if (isConnected) {
+                        this.plugin.logInfo("Fetching models...");
+                        const models = await client.listModels();
+                        this.plugin.logInfo("Models fetched:", models);
+                        return models.length > 0
+                            ? `✅ Connected | Models: ${models.join(", ")}`
+                            : "✅ Connected | no models found";
+                    } else {
+                        return "❌ Cannot connect";
+                    }
+                } catch (error) {
+                    const errorMsg = this.plugin.logError(
+                        error,
+                        "Connection test failed",
+                    );
+                    return `❌ ${errorMsg}`;
+                }
+            };
+
+            if (connKey !== "local-ollama") {
+                new Setting(connSection)
+                    .setName("Remove connection")
+                    .setDesc("Delete this connection")
+                    .addButton((button) =>
+                        button
+                            .setButtonText("Remove")
+                            .setWarning()
+                            .onClick(() => {
+                                this.removeConnection(connKey);
+                            }),
+                    );
+            }
+        }
+    }
+
     displayPromptConfigs(containerEl: HTMLElement): void {
         for (const [promptKey, promptConfig] of Object.entries(
             this.newSettings.prompts,
@@ -233,6 +400,31 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                                 value.trim();
                         }),
                 );
+
+            new Setting(promptSection)
+                .setName("Connection")
+                .setDesc(
+                    "Which LLM connection to use (leave empty for default)",
+                )
+                .addDropdown((dropdown) => {
+                    dropdown.addOption("", "Use default connection");
+                    for (const key of Object.keys(
+                        this.newSettings.connections,
+                    )) {
+                        dropdown.addOption(key, key);
+                    }
+                    dropdown
+                        .setValue(promptConfig.connection || "")
+                        .onChange((value) => {
+                            if (value === "") {
+                                delete this.newSettings.prompts[promptKey]
+                                    .connection;
+                            } else {
+                                this.newSettings.prompts[promptKey].connection =
+                                    value;
+                            }
+                        });
+                });
 
             const checkFile = (inputEl: HTMLElement, filePath: string) => {
                 const exists =
@@ -275,6 +467,44 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                     );
             }
         }
+    }
+
+    private generateConnectionKey(): string {
+        return `connection-${Date.now()}`;
+    }
+
+    addNewConnection(): void {
+        const connKey = this.generateConnectionKey();
+        const newConnection: ConnectionConfig = {
+            provider: "ollama",
+            baseUrl: "http://localhost:11434",
+        };
+
+        this.newSettings.connections[connKey] = newConnection;
+        this.display();
+    }
+
+    removeConnection(connKey: string): void {
+        // Don't allow removing if it's the default
+        if (this.newSettings.defaultConnection === connKey) {
+            // Switch to first available connection
+            const remaining = Object.keys(this.newSettings.connections).filter(
+                (k) => k !== connKey,
+            );
+            if (remaining.length > 0) {
+                this.newSettings.defaultConnection = remaining[0];
+            }
+        }
+
+        // Remove any prompt references to this connection
+        for (const promptKey of Object.keys(this.newSettings.prompts)) {
+            if (this.newSettings.prompts[promptKey].connection === connKey) {
+                delete this.newSettings.prompts[promptKey].connection;
+            }
+        }
+
+        delete this.newSettings.connections[connKey];
+        this.display();
     }
 
     private generatePromptKey(): string {

@@ -3,10 +3,12 @@ import type { TFile } from "obsidian";
 export interface PromptConfig {
     displayLabel: string;
     promptFile?: string;
+    connection?: string;
 }
 
 export interface ResolvedPrompt {
     prompt: string;
+    connection?: string;
     model?: string;
     numCtx?: number;
     isContinuous?: boolean;
@@ -24,15 +26,24 @@ export interface ResolvedPrompt {
     replaceSelectedText?: boolean;
 }
 
+export type LLMProvider = "ollama" | "openai-compatible";
+
+export interface ConnectionConfig {
+    provider: LLMProvider;
+    baseUrl: string;
+    apiKey?: string;
+    defaultModel?: string;
+    keepAlive?: string;
+    apiPrefix?: string; // Auto-detected API prefix (empty or /api)
+}
+
 export interface PromptFlowSettings {
     showLlmRequests: boolean;
     debugLogging: boolean;
-    ollamaUrl: string;
-    modelName: string;
+    defaultConnection: string;
+    connections: Record<string, ConnectionConfig>;
     prompts: Record<string, PromptConfig>;
     excludePatterns: string;
-    excludeLinkPatterns?: string;
-    keepAlive: string;
 }
 
 export interface IOllamaClient {
@@ -41,7 +52,7 @@ export interface IOllamaClient {
         systemPrompt: string,
         documentText: string,
         options?: GenerateOptions,
-    ): Promise<GenerateResult | string>;
+    ): Promise<GenerateResult>;
     checkConnection(): Promise<boolean>;
     listModels(): Promise<string[]>;
 }

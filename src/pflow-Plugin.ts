@@ -7,9 +7,14 @@ import {
     Plugin,
     TFile,
 } from "obsidian";
-import type { Logger, PromptFlowSettings, ResolvedPrompt } from "./@types";
+import type {
+    IOllamaClient,
+    Logger,
+    PromptFlowSettings,
+    ResolvedPrompt,
+} from "./@types";
 import { DEFAULT_PROMPT, DEFAULT_SETTINGS } from "./pflow-Constants";
-import { OllamaClient } from "./pflow-OllamaClient";
+import { createLLMClient } from "./pflow-LLMClientFactory";
 import { PromptFlowSettingsTab } from "./pflow-SettingsTab";
 import {
     compileExcludePatterns,
@@ -39,7 +44,6 @@ type EmbeddedNotes = Map<string, EmbeddedLink>;
 
 export class PromptFlowPlugin extends Plugin implements Logger {
     settings!: PromptFlowSettings;
-    ollamaClient!: OllamaClient;
     private commandIds: string[] = [];
     private excludePatterns: RegExp[] = [];
     private promptContexts = new Map<
@@ -58,7 +62,6 @@ export class PromptFlowPlugin extends Plugin implements Logger {
 
         // Defer initialization until layout is ready
         this.app.workspace.onLayoutReady(() => {
-            this.updateOllamaClient();
             this.generateCommands();
             this.registerContextReaper();
         });
@@ -80,8 +83,18 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         true,
     );
 
-    private updateOllamaClient(): void {
-        this.ollamaClient = new OllamaClient(this.settings.ollamaUrl, this);
+    private getClientForPrompt(resolvedPrompt: ResolvedPrompt): IOllamaClient {
+        const connectionKey =
+            resolvedPrompt.connection || this.settings.defaultConnection;
+        const connection = this.settings.connections[connectionKey];
+
+        if (!connection) {
+            throw new Error(
+                `Connection '${connectionKey}' not found in settings`,
+            );
+        }
+
+        return createLLMClient(connection, this, () => this.saveSettings());
     }
 
     private clearCommands() {
@@ -122,26 +135,73 @@ export class PromptFlowPlugin extends Plugin implements Logger {
     }
 
     async loadSettings() {
-        this.settings = Object.assign(
-            {},
-            DEFAULT_SETTINGS,
-            (await this.loadData()) as PromptFlowSettings,
-        );
-        if (this.ollamaClient) {
-            this.updateOllamaClient();
+        const loaded = (await this.loadData()) as PromptFlowSettings & {
+            ollamaUrl?: string;
+            modelName?: string;
+            keepAlive?: string;
+            systemPrompt?: string;
+            affirmationPromptFile?: string;
+            reflectionPromptFile?: string;
+            excludeLinkPatterns?: string;
+        };
+
+        let migrated = false;
+        // Migrate old settings format to new connections format
+        if (
+            loaded?.ollamaUrl ||
+            loaded?.modelName ||
+            loaded?.keepAlive ||
+            loaded?.systemPrompt ||
+            loaded?.affirmationPromptFile ||
+            loaded?.reflectionPromptFile ||
+            loaded?.excludeLinkPatterns
+        ) {
+            migrated = true;
+            this.logInfo(
+                "Migrating old settings format to new connections format",
+            );
+
+            if (loaded?.ollamaUrl && !loaded.connections) {
+                loaded.connections = {
+                    "local-ollama": {
+                        provider: "ollama",
+                        baseUrl: loaded.ollamaUrl,
+                        defaultModel: loaded.modelName || "llama3.1",
+                        keepAlive: loaded.keepAlive || "10m",
+                    },
+                };
+                loaded.defaultConnection = "local-ollama";
+            }
+
+            if (loaded.excludeLinkPatterns) {
+                loaded.excludePatterns =
+                    loaded.excludePatterns || loaded.excludeLinkPatterns;
+            }
+
+            // Clean up old fields
+            delete loaded.ollamaUrl;
+            delete loaded.modelName;
+            delete loaded.keepAlive;
+            delete loaded.systemPrompt;
+            delete loaded.affirmationPromptFile;
+            delete loaded.reflectionPromptFile;
+            delete loaded.excludeLinkPatterns;
         }
-        this.excludePatterns = compileExcludePatterns(
-            this.settings.excludePatterns || this.settings.excludeLinkPatterns,
-        );
+
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
+
+        if (migrated) {
+            await this.saveSettings();
+        } else {
+            this.excludePatterns = compileExcludePatterns(
+                this.settings.excludePatterns,
+            );
+        }
     }
 
     async saveSettings() {
-        if (this.settings.excludeLinkPatterns) {
-            this.settings.excludePatterns = this.settings.excludeLinkPatterns;
-            delete this.settings.excludeLinkPatterns;
-        }
+        this.logDebug("Saving settings", this.settings);
         await this.saveData(this.settings);
-        this.updateOllamaClient();
         this.excludePatterns = compileExcludePatterns(
             this.settings.excludePatterns,
         );
@@ -327,6 +387,13 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         const frontmatter =
             this.app.metadataCache.getFileCache(file)?.frontmatter;
 
+        // Extract connection from note frontmatter (can override everything)
+        const noteConnection = extractFrontmatterValue(
+            frontmatter,
+            "connection",
+            promptKey,
+        );
+
         // Check for direct prompt in frontmatter
         const promptValue = extractFrontmatterValue(
             frontmatter,
@@ -334,7 +401,10 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             promptKey,
         );
         if (promptValue) {
-            return { prompt: promptValue };
+            return {
+                prompt: promptValue,
+                connection: noteConnection,
+            };
         }
 
         // Check for prompt-file in frontmatter
@@ -346,12 +416,21 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         if (promptFile) {
             const resolved = await this.readPromptFromFile(promptFile);
             if (resolved) {
-                return resolved;
+                // Note frontmatter connection overrides prompt file connection
+                return {
+                    ...resolved,
+                    connection: noteConnection ?? resolved.connection,
+                };
             }
         }
 
         // Fallback to global settings or built-in defaults
-        return this.getDefaultPrompt(promptKey);
+        const defaultResolved = await this.getDefaultPrompt(promptKey);
+        // Note frontmatter connection overrides everything
+        return {
+            ...defaultResolved,
+            connection: noteConnection ?? defaultResolved.connection,
+        };
     }
 
     private async getDefaultPrompt(promptKey: string): Promise<ResolvedPrompt> {
@@ -367,12 +446,19 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             );
             this.logDebug("Using file prompt", promptConfig.promptFile);
             if (resolved) {
-                return resolved;
+                // Prompt file connection overrides prompt config connection
+                return {
+                    ...resolved,
+                    connection: resolved.connection ?? promptConfig.connection,
+                };
             }
         }
 
         // Final fallback for legacy prompts
-        return { prompt: DEFAULT_PROMPT };
+        return {
+            prompt: DEFAULT_PROMPT,
+            connection: promptConfig.connection,
+        };
     }
 
     private async readPromptFromFile(
@@ -439,10 +525,16 @@ export class PromptFlowPlugin extends Plugin implements Logger {
                     frontmatter?.replaceSelectedText,
                 );
 
+                const connection =
+                    typeof frontmatter?.connection === "string"
+                        ? frontmatter.connection
+                        : undefined;
+
                 // Strip frontmatter from prompt content
                 const promptText = this.stripFrontmatter(promptContent);
                 return {
                     prompt: promptText,
+                    connection,
                     model,
                     numCtx,
                     isContinuous,
@@ -731,19 +823,43 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             return null;
         }
 
-        const model = resolvedPrompt.model || this.settings.modelName;
+        // Get connection for this prompt
+        const connectionKey =
+            resolvedPrompt.connection || this.settings.defaultConnection;
+        const connection = this.settings.connections[connectionKey];
 
-        if (!this.settings.ollamaUrl || !model) {
+        if (!connection) {
             new Notice(
-                "Ollama URL or model not configured. Please check settings.",
+                `Connection '${connectionKey}' not found. Please check settings.`,
             );
             return null;
         }
 
-        const isConnected = await this.ollamaClient.checkConnection();
+        // Get model from prompt or connection default
+        const model =
+            resolvedPrompt.model || connection.defaultModel || "llama3.1";
+
+        if (!connection.baseUrl || !model) {
+            new Notice(
+                "Connection URL or model not configured. Please check settings.",
+            );
+            return null;
+        }
+
+        // Create client for this connection
+        let client: IOllamaClient;
+        try {
+            client = this.getClientForPrompt(resolvedPrompt);
+        } catch (error) {
+            const errorMsg = this.logError(error, "Failed to create client");
+            new Notice(`Connection error: ${errorMsg}`);
+            return null;
+        }
+
+        const isConnected = await client.checkConnection();
         if (!isConnected) {
             new Notice(
-                "Cannot connect to Ollama. Please ensure Ollama is running.",
+                `Cannot connect to ${connectionKey}. Please check connection settings.`,
             );
             return null;
         }
@@ -752,7 +868,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             this.settings.prompts[promptKey]?.displayLabel || promptKey;
 
         const notice = new Notice(
-            `Generating ${displayLabel} using ${model}`,
+            `Generating ${displayLabel} using ${model} (${connectionKey})`,
             0,
         );
 
@@ -770,7 +886,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             topP: resolvedPrompt.topP,
             topK: resolvedPrompt.topK,
             repeatPenalty: resolvedPrompt.repeatPenalty,
-            keepAlive: this.settings.keepAlive,
+            keepAlive: connection.keepAlive,
         };
 
         this.logLlmRequest({
@@ -783,7 +899,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         });
 
         try {
-            const result = await this.ollamaClient.generate(
+            const result = await client.generate(
                 model,
                 resolvedPrompt.prompt,
                 documentText,

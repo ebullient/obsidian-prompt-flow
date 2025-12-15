@@ -1,16 +1,18 @@
 # Prompt Flow
 
-Generate AI content in Obsidian using your local Ollama instance. Features custom prompts, content filters, and an API for advanced integrations.
+Generate AI content in Obsidian using local LLMs or OpenAI-compatible APIs. Features custom prompts, content filters, and an API for advanced integrations.
 
 > **Important Notes**
 >
-> - **Privacy**: All processing happens locally using your own Ollama instance. No data is sent to external services.
-> - **Network Use**: This plugin only communicates with your local Ollama instance (default: `http://localhost:11434`).
-> - **Mobile Support**: Works on both desktop and mobile devices.
+> - **Privacy**: Supports local processing with Ollama or external OpenAI-compatible APIs
+> - **Network Use**: Plugin only communicates with your configured LLM provider(s)
+> - **Mobile Support**: Works on both desktop and mobile devices
 
 ## Features
 
-- **AI-Powered Content Generation**: Uses your local Ollama instance to generate personalized content based on custom prompts
+- **Multiple LLM Providers**: Support for Ollama (local) and OpenAI-compatible APIs (OpenAI, OpenRouter, OpenWebUI, etc.)
+- **Named Connections**: Configure multiple LLM providers and switch between them
+- **AI-Powered Content Generation**: Generate personalized content based on custom prompts
 - **Smart Insertion**: Add generated content at your cursor position
 - **Customizable Prompts**: Configure system prompts, model selection, and per-note overrides
 - **Link Expansion**: Optionally include content from `[[wikilinks]]` in your prompts
@@ -19,8 +21,10 @@ Generate AI content in Obsidian using your local Ollama instance. Features custo
 
 ## Requirements
 
-- [Ollama](https://ollama.ai/) running locally
-- A language model installed in Ollama (e.g., `llama3.1`, `mistral`)
+Choose one or more:
+
+- **Ollama** (local): [Install Ollama](https://ollama.ai/) and pull a model (e.g., `llama3.1`)
+- **OpenAI-compatible API**: OpenAI, OpenRouter, OpenWebUI, or any OpenAI-compatible service
 
 ## Installation
 
@@ -37,12 +41,26 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
 
 ## Setup
 
+### For Ollama (Local)
+
 1. Install and start Ollama on your machine
 2. Pull a model: `ollama pull llama3.1`
-3. In Obsidian, go to Settings → Prompt Flow
-4. Configure your Ollama URL (default: `http://localhost:11434`)
-5. Set your default model name (e.g., `llama3.1`)
-6. Test the connection using the test button
+3. In Obsidian, go to Settings → Prompt Flow → Connections
+4. The default "local-ollama" connection should work automatically
+5. Test the connection using the test button
+
+### For OpenAI-Compatible APIs
+
+1. In Obsidian, go to Settings → Prompt Flow → Connections
+2. Click "Add connection"
+3. Configure:
+   - **Connection name**: A unique identifier (e.g., "openrouter", "openai")
+   - **Provider**: Select "OpenAI-compatible"
+   - **Base URL**: Your API endpoint (e.g., `https://api.openai.com`, `https://openrouter.ai/api`, `http://localhost:8080`)
+   - **API Key**: Your API key for the service
+   - **Default model**: Model identifier (e.g., `gpt-4o`, `gpt-4o-mini`, `meta-llama/llama-3.1-8b-instruct`)
+4. Test the connection using the test button
+5. Set as default connection if desired
 
 ## Usage
 
@@ -64,17 +82,23 @@ In Settings → Prompt Flow → Prompts:
 
 For each prompt, a command is automatically created: `Generate [prompt name]`
 
-### Per-Note Prompt Overrides
+### Per-Note Overrides
 
-You can override the default prompt file on a per-note basis using frontmatter:
+You can override settings on a per-note basis using frontmatter:
 
 ```yaml
 ---
 prompt-file: "prompts/creative-writing-coach.md"
+connection: "openrouter"
 ---
 ```
 
-Without this override, the plugin uses the prompt file configured in plugin settings for that command.
+**Available overrides:**
+
+- `prompt-file`: Path to a custom prompt file
+- `connection`: Connection name to use (overrides the default)
+
+Without these overrides, the plugin uses the settings configured for that command.
 
 ### Prompt File Configuration
 
@@ -82,12 +106,11 @@ Prompt files can include frontmatter to customize behavior:
 
 ```markdown
 ---
-model: llama3.1
+connection: openrouter
+model: meta-llama/llama-3.1-8b-instruct
 num_ctx: 4096
 temperature: 0.7
 top_p: 0.9
-top_k: 40
-repeat_penalty: 1.1
 isContinuous: true
 includeLinks: true
 excludeCalloutTypes: ["todo", "warning"]
@@ -99,12 +122,13 @@ day.
 
 **Available options:**
 
-- `model`: Specific Ollama model to use
-- `num_ctx`: Context window size (tokens)
+- `connection`: Connection name to use (overrides default)
+- `model`: Specific model to use
+- `num_ctx`: Context window size (tokens) or max_tokens for OpenAI-compatible
 - `temperature`: Randomness (0.0-2.0, default: 0.8)
 - `top_p`: Nucleus sampling threshold (0.0-1.0)
-- `top_k`: Top-k sampling limit
-- `repeat_penalty`: Penalty for repetition (>0, default: 1.1)
+- `top_k`: Top-k sampling limit (Ollama only)
+- `repeat_penalty`: Penalty for repetition (>0, default: 1.1, Ollama only)
 - `isContinuous`: Keep conversation context between requests (default: false)
 - `includeLinks`: Auto-expand `[[wikilinks]]` to include linked content (default: false)
 - `excludePatterns`: Array of regex patterns to exclude links
@@ -151,15 +175,31 @@ filters: ["redactSecrets", "removeEmojis"]
 Generate a thoughtful reflection question.
 ```
 
-Filters are applied sequentially in the order specified before sending content to Ollama.
+Filters are applied sequentially in the order specified before sending content to the LLM.
 
 ## Configuration Reference
 
-### Ollama Settings
+### Connections
 
-- **Ollama URL**: URL of your Ollama instance (default: `http://localhost:11434`)
-- **Model name**: Default model to use (e.g., `llama3.1`, `mistral`)
+Configure one or more LLM provider connections in Settings → Prompt Flow → Connections.
+
+**Ollama connection settings:**
+
+- **Connection name**: Unique identifier (e.g., "local-ollama")
+- **Provider**: Ollama
+- **Base URL**: URL of your Ollama instance (default: `http://localhost:11434`)
+- **Default model**: Model to use (e.g., `llama3.1`, `mistral`)
 - **Keep alive**: How long to keep model loaded in memory (e.g., `10m`, `1h`, `-1` for always)
+
+**OpenAI-compatible connection settings:**
+
+- **Connection name**: Unique identifier (e.g., "openrouter", "openai")
+- **Provider**: OpenAI-compatible
+- **Base URL**: API endpoint URL
+- **API Key**: Your API key for the service
+- **Default model**: Model identifier (provider-specific)
+
+The plugin auto-detects the correct API path structure for different OpenAI-compatible services (standard `/v1` or OpenWebUI `/api/v1`).
 
 ### Link Filtering
 
@@ -167,34 +207,37 @@ Filters are applied sequentially in the order specified before sending content t
 
 ### Debug Options
 
-- **Show LLM request payloads**: Log prompts and content sent to Ollama (useful for debugging)
+- **Show LLM request payloads**: Log prompts and content sent to the LLM provider (useful for debugging)
 - **Enable debug logging**: Verbose plugin events in developer console
 
 ## Privacy & Security
 
-- **Local-only processing**: All AI generation happens via your local Ollama instance
-- **No telemetry**: No usage tracking or data collection
-- **No external services**: Plugin only communicates with your configured Ollama URL
+- **Configurable processing**: Choose between local processing (Ollama) or external APIs (OpenAI-compatible)
+- **No telemetry**: No usage tracking or data collection by the plugin
+- **Direct connections**: Plugin only communicates with your configured LLM provider(s)
+- **API key security**: API keys are stored in Obsidian's settings and never transmitted except to your configured provider
 
 ## Troubleshooting
 
-**Cannot connect to Ollama:**
+**Cannot connect to LLM provider:**
 
-- Verify Ollama is running: `ollama serve`
-- Check the Ollama URL in settings
-- Test connection using the test button in settings
+- **Ollama**: Verify Ollama is running (`ollama serve`) and check the base URL
+- **OpenAI-compatible**: Verify API key is correct and base URL is accessible
+- Test connection using the test button in Settings → Connections
+- Check console for errors (Cmd/Ctrl + Shift + I)
 
 **No models found:**
 
-- Pull a model: `ollama pull llama3.1`
-- Verify models are installed: `ollama list`
+- **Ollama**: Pull a model (`ollama pull llama3.1`) and verify with `ollama list`
+- **OpenAI-compatible**: Check that your API key has access to the models
+- Use the test connection button to see available models
 
 **Generated content not appearing:**
 
 - Check cursor position (must be in edit mode)
 - Review console for errors (Cmd/Ctrl + Shift + I)
 - Enable debug logging in settings
-- Be patient. If you're sending a lot of data, it can take a bit.
+- Be patient. Large requests can take time to process.
 
 ## Development
 
@@ -203,6 +246,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, build commands, an
 ## Acknowledgements
 
 This plugin is based on [Build an LLM Journaling Reflection Plugin for Obsidian](https://thomaschang.me/blog/obsidian-reflect) by Thomas Chang. See [his implementation](https://github.com/tchbw/obsidian-reflect/).
+
+Additional implementation ideas come from the [Canvas Conversation](https://github.com/AndreBaltazar8/obsidian-canvas-conversation/tree/master) plugin by André Baltazar
 
 ## License
 

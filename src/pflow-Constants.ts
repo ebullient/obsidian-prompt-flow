@@ -5,12 +5,18 @@ Your job is to respond based on the content provided.
 Keep your response concise and relevant.`;
 
 export const DEFAULT_SETTINGS: PromptFlowSettings = {
-    ollamaUrl: "http://localhost:11434",
-    modelName: "llama3.1",
+    defaultConnection: "local-ollama",
     excludePatterns: "",
-    keepAlive: "10m",
     debugLogging: false,
     showLlmRequests: false,
+    connections: {
+        "local-ollama": {
+            provider: "ollama",
+            baseUrl: "http://localhost:11434",
+            defaultModel: "llama3.1",
+            keepAlive: "10m",
+        },
+    },
     prompts: {
         default: {
             displayLabel: "prompt",
