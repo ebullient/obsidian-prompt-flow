@@ -48,7 +48,7 @@
   "dependencies": {
     "@codemirror/language": "https://github.com/lishid/cm-language",
     "eventsource-parser": "^3.0.6",
-    "ollama": "^0.6.0"
+    "ollama": "^0.6.3"
   },
   "auto-changelog": {
     "backfillLimit": false,
