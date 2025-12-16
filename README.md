@@ -84,21 +84,24 @@ For each prompt, a command is automatically created: `Generate [prompt name]`
 
 ### Per-Note Overrides
 
-You can override settings on a per-note basis using frontmatter:
+You can override the prompt file on a per-note basis using frontmatter:
 
 ```yaml
 ---
 prompt-file: "prompts/creative-writing-coach.md"
-connection: "openrouter"
 ---
 ```
 
-**Available overrides:**
+**Available override:**
 
 - `prompt-file`: Path to a custom prompt file
-- `connection`: Connection name to use (overrides the default)
 
-Without these overrides, the plugin uses the settings configured for that command.
+This override allows different notes to use different prompt files with the same
+command. Without this override, the plugin uses the prompt file configured in
+Settings for that command.
+
+To override the connection or model, specify these in the prompt file's
+frontmatter instead (see Prompt File Configuration below).
 
 ### Prompt File Configuration
 

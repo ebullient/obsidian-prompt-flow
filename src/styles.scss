@@ -1,14 +1,13 @@
-/* Journal Reflect Plugin Styles */
+/* Prompt Flow Plugin Styles */
 
-.pflow-reflect {
-    /* Add any custom styles here if needed */
-}
+.prompt-flow {
+  /* Add any custom styles here if needed */
 
-/* Settings Tab Styles */
-.pflow-reflect-prompt-config {
+  &.prompt-config {
     border: 1px solid var(--background-modifier-border);
     padding: 10px;
     margin: 10px 0;
     border-radius: 5px;
     background-color: var(--background-secondary);
+  }
 }

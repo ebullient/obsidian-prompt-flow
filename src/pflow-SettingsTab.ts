@@ -166,7 +166,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             this.newSettings.connections,
         )) {
             const connSection = containerEl.createEl("div", {
-                cls: "setting-item-group pflow-reflect-prompt-config",
+                cls: "setting-item-group prompt-flow prompt-config",
             });
 
             new Setting(connSection)
@@ -280,6 +280,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                 );
 
             if (connConfig.provider === "openai-compatible") {
+                // TODO: Obsidian
                 new Setting(connSection)
                     .setName("API Key")
                     .setDesc("Authentication key for the API")
@@ -386,7 +387,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             this.newSettings.prompts,
         )) {
             const promptSection = containerEl.createEl("div", {
-                cls: "setting-item-group pflow-reflect-prompt-config",
+                cls: "setting-item-group prompt-flow prompt-config",
             });
 
             new Setting(promptSection)
