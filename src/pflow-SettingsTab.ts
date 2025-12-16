@@ -170,7 +170,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             });
 
             new Setting(connSection)
-                .setName("Connection ID")
+                .setName("Connection identifier")
                 .setDesc(
                     "Unique identifier for this connection (used in prompt frontmatter)",
                 )
@@ -219,7 +219,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                 .addDropdown((dropdown) =>
                     dropdown
                         .addOption("ollama", "Ollama")
-                        .addOption("openai-compatible", "OpenAI-Compatible")
+                        .addOption("openai-compatible", "OpenAI-compatible")
                         .setValue(connConfig.provider)
                         .onChange((value) => {
                             this.newSettings.connections[connKey].provider =
@@ -282,7 +282,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             if (connConfig.provider === "openai-compatible") {
                 // TODO: Obsidian
                 new Setting(connSection)
-                    .setName("API Key")
+                    .setName("API key")
                     .setDesc("Authentication key for the API")
                     .addText((text) => {
                         text.inputEl.type = "password";
@@ -310,7 +310,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
 
             if (connConfig.provider === "ollama") {
                 new Setting(connSection)
-                    .setName("Keep alive (ollama)")
+                    .setName("Keep alive (Ollama)")
                     .setDesc("How long to keep model in memory")
                     .addText((text) =>
                         text

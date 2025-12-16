@@ -33,6 +33,6 @@ export function createLLMClient(
         }
 
         default:
-            throw new Error(`Unknown provider: ${connection.provider}`);
+            throw new Error("Unknown provider:", connection.provider);
     }
 }

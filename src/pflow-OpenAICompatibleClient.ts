@@ -184,9 +184,10 @@ export class OpenAICompatibleClient extends LLMBaseClient {
                     this.connectionConfig.apiPrefix || "(empty)",
                 );
                 return result;
-            } catch (_error) {
+            } catch (error) {
                 this.logger.logDebug(
                     "Saved prefix failed, trying auto-detection",
+                    error,
                 );
             }
         }
@@ -197,8 +198,11 @@ export class OpenAICompatibleClient extends LLMBaseClient {
             this.logger.logDebug("Request successful with no prefix");
             await this.saveApiPrefix("");
             return result;
-        } catch (_firstError) {
-            this.logger.logDebug("Failed with no prefix, trying /api");
+        } catch (firstError) {
+            this.logger.logDebug(
+                "Failed with no prefix, trying /api",
+                firstError,
+            );
 
             // Try OpenWebUI native prefix as fallback
             const result = await handler(`${this.baseUrl}/api/v1/models`);

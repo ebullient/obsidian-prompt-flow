@@ -279,7 +279,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
     }
 
     logInfo(message: string, ...params: unknown[]): void {
-        console.info("(PF)", message, ...params);
+        console.debug("(PF)", message, ...params);
     }
 
     logWarn(message: string, ...params: unknown[]): void {

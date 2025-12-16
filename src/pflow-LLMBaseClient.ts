@@ -68,10 +68,11 @@ export abstract class LLMBaseClient implements IOllamaClient {
                         if (content) {
                             fullResponse += content;
                         }
-                    } catch (_parseError) {
+                    } catch (parseError) {
                         this.logger.logDebug(
                             "Failed to parse SSE chunk:",
                             data,
+                            parseError,
                         );
                     }
                 },
@@ -85,7 +86,9 @@ export abstract class LLMBaseClient implements IOllamaClient {
                 // If no [DONE] was sent, resolve with what we have
                 resolve(fullResponse);
             } catch (error) {
-                reject(error);
+                const err =
+                    error instanceof Error ? error : new Error(String(error));
+                reject(err);
             }
         });
     }

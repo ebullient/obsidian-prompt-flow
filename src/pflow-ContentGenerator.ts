@@ -541,8 +541,12 @@ export class ContentGenerator {
                 if (line?.includes("Thinking")) {
                     editor.setLine(startLine, newPlaceholder);
                 }
-            } catch (_error) {
+            } catch (error) {
                 // Line might not exist anymore, stop animation
+                this.plugin.logDebug(
+                    "Error updating placeholder animation:",
+                    error,
+                );
                 window.clearInterval(intervalId);
             }
         }, 150);
@@ -613,8 +617,9 @@ export class ContentGenerator {
             const endPos = { line: endLine, ch: 0 };
 
             editor.replaceRange("", startPos, endPos);
-        } catch (_error) {
+        } catch (error) {
             // Placeholder might already be gone
+            this.plugin.logDebug("Placeholder already removed.", error);
         }
     }
 }
