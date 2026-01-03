@@ -35,6 +35,15 @@ Choose one or more:
 3. Reload Obsidian
 4. Enable "Prompt Flow" in Settings → Community Plugins
 
+### Install using BRAT
+
+Assuming you have the BRAT plugin installed and enabled:
+
+1. Open BRAT plugin settings
+2. Click 'Add beta plugin'
+3. Use `https://github.com/ebullient/obsidian-prompt-flow/` as the URL, and install the plugin
+4. Enable "Prompt Flow", either as part of installation with BRAT, or in Settings → Community Plugins
+
 ### Building from Source
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
