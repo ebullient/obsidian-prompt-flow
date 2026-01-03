@@ -14,6 +14,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
     constructor(app: App, plugin: PromptFlowPlugin) {
         super(app, plugin);
         this.plugin = plugin;
+        this.icon = "messages-square";
     }
 
     async save() {
