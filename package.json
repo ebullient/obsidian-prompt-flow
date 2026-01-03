@@ -2,7 +2,7 @@
   "name": "obsidian-prompt-flow",
   "description": "Local AI content generation for Obsidian with Ollama. Features custom prompts, content filtering, link expansion, continuous conversations, and extensible filter API.",
   "main": "main.js",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "fix": "npx @biomejs/biome check --write ./src",
