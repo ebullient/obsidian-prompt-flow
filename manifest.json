@@ -6,5 +6,6 @@
 	"description": "Local AI content generation with Ollama. Features custom prompts, content filtering, link expansion, continuous conversations, and extensible filter API.",
 	"author": "ebullient",
 	"authorUrl": "https://github.com/ebullient",
+  "fundingUrl": "https://buymeacoffee.com/ebullient",
 	"isDesktopOnly": false
 }
