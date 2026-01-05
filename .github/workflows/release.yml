@@ -28,6 +28,8 @@ env:
   GH_BOT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
   GH_BOT_NAME: "GitHub Action"
 
+permissions: read-all
+
 jobs:
   build:
     permissions:
@@ -85,6 +87,7 @@ jobs:
         if [ "${{ github.event.inputs.update_brat }}" = "true" ]; then
           sed -i 's|\(version":\) "[0-9\.]*"|\1 "'$VERSION'"|' manifest-beta.json
         fi
+        sed -i 's|\(placeholder: v\) "[0-9\.]*"|\1 "'$VERSION'"|' .github/ISSUE_TEMPLATE/bug-report.yaml
 
         git add .
         git status

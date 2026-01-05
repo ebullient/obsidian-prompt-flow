@@ -1,5 +1,4 @@
-name: CI Test
-
+name: Build and Test Obsidian Plugin
 on:
   workflow_dispatch:
   push:
@@ -7,12 +6,14 @@ on:
     paths:
       - '**.ts'
       - '**.json'
+      - '**.mjs'
       - '**.scss'
       - '**.css'
   pull_request:
     paths:
       - '**.ts'
       - '**.json'
+      - '**.mjs'
       - '**.scss'
       - '**.css'
 
