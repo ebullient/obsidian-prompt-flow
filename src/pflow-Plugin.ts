@@ -61,7 +61,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             const incoming = (await this.loadData()) as PromptFlowSettings;
             this.logDebug("Settings changed", incoming);
             this.settings = Object.assign({}, this.settings, incoming);
-            await this.saveSettings();
+            this.refreshDerivedState();
         },
         2000,
         true,
@@ -185,19 +185,20 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         }
 
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
-
         if (migrated) {
             await this.saveSettings();
         } else {
-            this.excludePatterns = compileExcludePatterns(
-                this.settings.excludePatterns,
-            );
+            this.refreshDerivedState();
         }
     }
 
     async saveSettings() {
         this.logDebug("Saving settings", this.settings);
         await this.saveData(this.settings);
+        this.refreshDerivedState();
+    }
+
+    refreshDerivedState() {
         this.excludePatterns = compileExcludePatterns(
             this.settings.excludePatterns,
         );

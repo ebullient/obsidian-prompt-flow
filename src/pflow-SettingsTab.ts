@@ -337,9 +337,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                         conn.baseUrl,
                     );
 
-                    const client = createLLMClient(conn, this.plugin, () =>
-                        this.plugin.saveSettings(),
-                    );
+                    const client = createLLMClient(conn, this.plugin);
                     this.plugin.logInfo("Client created successfully");
 
                     const isConnected = await client.checkConnection();
