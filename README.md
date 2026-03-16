@@ -1,5 +1,7 @@
 # Prompt Flow
 
+![GitHub all releases](https://img.shields.io/github/downloads/ebullient/obsidian-prompt-flow/total?color=success)
+
 Generate AI content in Obsidian using local LLMs or OpenAI-compatible APIs. Features custom prompts, content filters, and an API for advanced integrations.
 
 > **Important Notes**
