@@ -112,10 +112,6 @@ export class PromptResolver {
                     typeof frontmatter?.calloutHeading === "string"
                         ? frontmatter.calloutHeading
                         : undefined;
-                const replaceSelectedText = parseBoolean(
-                    frontmatter?.replaceSelectedText,
-                );
-
                 const connection =
                     typeof frontmatter?.connection === "string"
                         ? frontmatter.connection
@@ -140,7 +136,6 @@ export class PromptResolver {
                     filters,
                     wrapInBlockquote,
                     calloutHeading,
-                    replaceSelectedText,
                 };
             } catch (error) {
                 new Notice(`Could not read prompt file: ${promptFilePath}`);

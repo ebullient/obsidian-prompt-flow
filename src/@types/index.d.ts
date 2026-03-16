@@ -23,7 +23,6 @@ export interface ResolvedPrompt {
     filters?: string[];
     wrapInBlockquote?: boolean;
     calloutHeading?: string;
-    replaceSelectedText?: boolean;
 }
 
 export type LLMProvider = "ollama" | "openai-compatible";

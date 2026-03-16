@@ -79,7 +79,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup instructions.
 2. Position your cursor where you want the prompt response to appear
 3. Open the command palette (Cmd/Ctrl + P)
 4. Run: **Generate `<prompt name>`** (e.g., "Generate reflection question")
-5. The AI-generated content will be inserted as a blockquote (by default) at your cursor
+5. The AI-generated content will be inserted at your cursor position,
+   replacing any selected text
 
 ### Configuring Prompts
 
@@ -148,7 +149,6 @@ day.
 - `filters`: Array of filter function names from `window.promptFlow.filters`
 - `wrapInBlockquote`: Format output as blockquote (default: true)
 - `calloutHeading`: Heading text for callout-style formatting
-- `replaceSelectedText`: Replace selected text instead of inserting (default: false)
 
 ### Continuous Conversations
 
@@ -182,7 +182,9 @@ window.promptFlow.filters.redactSecrets = (content) => {
 
 ```markdown
 ---
-filters: ["redactSecrets", "removeEmojis"]
+filters: 
+- redactSecrets
+- removeEmojis
 ---
 Generate a thoughtful reflection question.
 ```
