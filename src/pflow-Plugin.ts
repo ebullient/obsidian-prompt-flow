@@ -106,11 +106,14 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         for (const [promptKey, promptConfig] of Object.entries(
             this.settings.prompts,
         )) {
-            const commandId = `pflow-${promptKey}`;
+            const commandId = promptConfig.displayLabel
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-|-$/g, "");
 
             this.addCommand({
                 id: commandId,
-                name: `Generate ${promptConfig.displayLabel}`,
+                name: `${promptConfig.displayLabel}`,
                 editorCallback: async (
                     editor: Editor,
                     ctx: MarkdownView | MarkdownFileInfo,
