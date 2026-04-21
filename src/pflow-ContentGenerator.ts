@@ -55,6 +55,7 @@ export class ContentGenerator {
         promptKey: string,
     ) {
         const docContent = editor.getValue();
+        const myWindow = activeWindow;
 
         const activeNote = ctx.file;
         if (!activeNote) {
@@ -94,6 +95,7 @@ export class ContentGenerator {
             editor,
             resolved,
             activeNote,
+            myWindow,
         );
 
         const content = await this.getGeneratedContent(
@@ -105,7 +107,7 @@ export class ContentGenerator {
 
         // Stop animation and replace placeholder
         if (placeholderInfo) {
-            this.stopPlaceholderAnimation(placeholderInfo.intervalId);
+            this.stopPlaceholderAnimation(placeholderInfo.intervalId, myWindow);
         }
 
         // Check if file is still the same in this editor before inserting
@@ -250,7 +252,8 @@ export class ContentGenerator {
         let processedContent = content;
 
         for (const filterName of filterNames) {
-            const filterFn = window.promptFlow?.filters?.[filterName];
+            const promptFlow = this.plugin.promptFlow();
+            const filterFn = promptFlow.filters?.[filterName];
             if (!filterFn) {
                 this.plugin.logWarn(
                     `Filter "${filterName}" not found in window.promptFlow.filters`,
@@ -505,6 +508,7 @@ export class ContentGenerator {
         editor: Editor,
         resolved: ResolvedPrompt,
         activeNote: TFile,
+        myWindow: Window,
     ): {
         startLine: number;
         endLine: number;
@@ -532,7 +536,15 @@ export class ContentGenerator {
 
         // Animate the placeholder, but stop if file changes
         let currentFrame = 0;
-        const intervalId = window.setInterval(() => {
+        const startTime = Date.now();
+        const MAX_ANIMATION_MS = 30_000; // 30s safety cap
+
+        const intervalId = myWindow.setInterval(() => {
+            if (Date.now() - startTime > MAX_ANIMATION_MS) {
+                myWindow.clearInterval(intervalId);
+                return;
+            }
+
             currentFrame = (currentFrame + 1) % frames.length;
             const newPlaceholder = `${prefix}Thinking ${frames[currentFrame]}`;
 
@@ -541,13 +553,8 @@ export class ContentGenerator {
                 if (line?.includes("Thinking")) {
                     editor.setLine(startLine, newPlaceholder);
                 }
-            } catch (error) {
-                // Line might not exist anymore, stop animation
-                this.plugin.logDebug(
-                    "Error updating placeholder animation:",
-                    error,
-                );
-                window.clearInterval(intervalId);
+            } catch (_error) {
+                myWindow.clearInterval(intervalId);
             }
         }, 150);
 
@@ -560,8 +567,11 @@ export class ContentGenerator {
         };
     }
 
-    private stopPlaceholderAnimation(intervalId: number): void {
-        window.clearInterval(intervalId);
+    private stopPlaceholderAnimation(
+        intervalId: number,
+        myWindow: Window,
+    ): void {
+        myWindow.clearInterval(intervalId);
     }
 
     private replacePlaceholder(

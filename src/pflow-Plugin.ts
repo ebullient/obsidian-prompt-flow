@@ -14,11 +14,10 @@ import type {
     ResolvedPrompt,
 } from "./@types";
 import { DEFAULT_SETTINGS } from "./pflow-Constants";
+import { ContentGenerator } from "./pflow-ContentGenerator";
 import { createLLMClient } from "./pflow-LLMClientFactory";
 import { PromptFlowSettingsTab } from "./pflow-SettingsTab";
 import { compileExcludePatterns } from "./pflow-Utils";
-import "./window-type";
-import { ContentGenerator } from "./pflow-ContentGenerator";
 
 const CONTEXT_TTL_MS = 30 * 60 * 1000; // 30 minutes
 const CONTEXT_REAP_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
@@ -34,13 +33,18 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         { context: number[]; timestamp: number }
     >();
 
+    promptFlow() {
+        // window is intentional: filters are shared globally
+        return window.promptFlow;
+    }
+
     async onload() {
         await this.loadSettings();
 
         this.addSettingTab(new PromptFlowSettingsTab(this.app, this));
         this.generator = new ContentGenerator(this.app, this.settings, this);
 
-        // Initialize window.journal.filters for external scripts
+        // window is intentional: filters are shared globally
         window.promptFlow = window.promptFlow ?? {};
         window.promptFlow.filters = window.promptFlow.filters ?? {};
 

@@ -1,5 +1,15 @@
 import type { TFile } from "obsidian";
 
+type FilterFn = (content: string) => string;
+
+declare global {
+    interface Window {
+        promptFlow: {
+            filters: Record<string, FilterFn>;
+        };
+    }
+}
+
 export interface PromptConfig {
     displayLabel: string;
     promptFile?: string;
