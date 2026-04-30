@@ -166,7 +166,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         for (const [connKey, connConfig] of Object.entries(
             this.newSettings.connections,
         )) {
-            const connSection = containerEl.createEl("div", {
+            const connSection = containerEl.createDiv({
                 cls: "setting-item-group prompt-flow prompt-config",
             });
 
@@ -385,7 +385,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         for (const [promptKey, promptConfig] of Object.entries(
             this.newSettings.prompts,
         )) {
-            const promptSection = containerEl.createEl("div", {
+            const promptSection = containerEl.createDiv({
                 cls: "setting-item-group prompt-flow prompt-config",
             });
 
