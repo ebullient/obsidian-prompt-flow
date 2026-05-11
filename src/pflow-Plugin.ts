@@ -24,7 +24,7 @@ const CONTEXT_REAP_INTERVAL_MS = 3 * 60 * 60 * 1000; // 3 hours
 
 export class PromptFlowPlugin extends Plugin implements Logger {
     settings!: PromptFlowSettings;
-    generator: ContentGenerator;
+    generator!: ContentGenerator;
 
     private commandIds: string[] = [];
     private excludePatterns: RegExp[] = [];

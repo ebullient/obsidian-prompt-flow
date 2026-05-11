@@ -48,17 +48,16 @@ export class OllamaClient extends LLMBaseClient {
             }
 
             this.logger.logDebug("Send request to", this.baseUrl);
-            const response = await this.executeRequest({
+            const response = await this.executeRequest<GenerateResponse>({
                 url: `${this.baseUrl}/api/generate`,
                 method: "POST",
                 contentType: "application/json",
                 body: JSON.stringify(generateRequest),
             });
 
-            const data = response.json as GenerateResponse;
             return {
-                response: data.response?.trim() ?? null,
-                context: data.context,
+                response: response.json.response?.trim() ?? null,
+                context: response.json.context,
             };
         }, "Ollama");
     }
@@ -87,13 +86,12 @@ export class OllamaClient extends LLMBaseClient {
 
     async listModels(): Promise<string[]> {
         try {
-            const response = await this.executeRequest({
+            const response = await this.executeRequest<ListResponse>({
                 url: `${this.baseUrl}/api/tags`,
                 method: "GET",
             });
 
-            const data = response.json as ListResponse;
-            return data.models?.map((model) => model.name) || [];
+            return response.json.models?.map((model) => model.name) ?? [];
         } catch (error) {
             this.logger.logError(error, "Error fetching models");
             return [];

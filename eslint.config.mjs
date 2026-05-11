@@ -8,15 +8,15 @@ export default defineConfig([
     ...obsidianmd.configs.recommended,
     globalIgnores([
         "tests/",
-        "*.mjs",
-        "package.json"
+        "*.mjs"
     ]),
     {
         files: ["src/**/*.ts"],
         languageOptions: {
             parser: tsparser,
             parserOptions: {
-                project: "./tsconfig.json"
+                project: "./tsconfig.json",
+                tsconfigRootDir: import.meta.dirname,
             },
             globals: {
                 ...globals.node,

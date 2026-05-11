@@ -243,7 +243,9 @@ export class OpenAICompatibleClient extends LLMBaseClient {
     async listModels(): Promise<string[]> {
         try {
             return await this.executeModelsRequest(async (url) => {
-                const response = await this.executeRequest({
+                const response = await this.executeRequest<{
+                    data: Array<{ id: string }>;
+                }>({
                     url,
                     method: "GET",
                     headers: {
@@ -251,8 +253,7 @@ export class OpenAICompatibleClient extends LLMBaseClient {
                     },
                 });
 
-                const data = response.json as { data: Array<{ id: string }> };
-                return data.data?.map((model) => model.id) || [];
+                return response.json.data?.map((model) => model.id) ?? [];
             });
         } catch (error) {
             this.logger.logError(error, "Error fetching models");

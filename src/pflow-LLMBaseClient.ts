@@ -26,16 +26,47 @@ export abstract class LLMBaseClient implements IOllamaClient {
      */
     protected async executeRequest(
         options: RequestUrlParam,
-        parseJson = true,
+        parseJson: false,
     ): Promise<{
         status: number;
-        json?: unknown;
         arrayBuffer: ArrayBuffer;
-    }> {
+    }>;
+
+    protected async executeRequest<T>(
+        options: RequestUrlParam,
+        parseJson?: true,
+    ): Promise<{
+        status: number;
+        json: T;
+        arrayBuffer: ArrayBuffer;
+    }>;
+
+    protected async executeRequest(
+        options: RequestUrlParam,
+        parseJson = true,
+    ): Promise<
+        | {
+              status: number;
+              arrayBuffer: ArrayBuffer;
+          }
+        | {
+              status: number;
+              json: unknown;
+              arrayBuffer: ArrayBuffer;
+          }
+    > {
         const response = await requestUrl(options);
+
+        if (!parseJson) {
+            return {
+                status: response.status,
+                arrayBuffer: response.arrayBuffer,
+            };
+        }
+
         return {
             status: response.status,
-            json: parseJson ? response.json : undefined,
+            json: response.json,
             arrayBuffer: response.arrayBuffer,
         };
     }
