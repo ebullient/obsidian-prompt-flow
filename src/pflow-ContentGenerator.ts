@@ -553,7 +553,7 @@ export class ContentGenerator {
                 if (line?.includes("Thinking")) {
                     editor.setLine(startLine, newPlaceholder);
                 }
-            } catch (_error) {
+            } catch {
                 myWindow.clearInterval(intervalId);
             }
         }, 150);

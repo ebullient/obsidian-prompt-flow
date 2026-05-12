@@ -32,10 +32,10 @@
     "@types/node": "^25.5.0",
     "@typescript-eslint/parser": "^8.46.4",
     "auto-changelog": "^2.5.0",
-
     "esbuild": "^0.28.0",
     "esbuild-sass-plugin": "^3.6.0",
-    "eslint-plugin-obsidianmd": "^0.2.9",
+    "eslint": "^9.39.4",
+    "eslint-plugin-obsidianmd": "^0.3.0",
     "globals": "^17.3.0",
     "obsidian": "^1.12.3",
     "tslib": "^2.8.1",

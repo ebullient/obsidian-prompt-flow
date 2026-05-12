@@ -307,7 +307,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             return error.message;
         }
         console.error("(PF)", error, ...params);
-        return String(error);
+        return JSON.stringify(error);
     }
 
     logDebug(message: string, ...params: unknown[]): void {
