@@ -134,6 +134,5 @@ jobs:
             --prerelease=${prerelease} \
             "${REPO_NAME}-${RELEASE_VERSION}.zip" \
             './main.js' \
-            './styles.css' \
             './manifest.json' \
             './manifest-beta.json'
