@@ -4,6 +4,7 @@ import {
     Notice,
     PluginSettingTab,
     Setting,
+    type SettingDefinition,
     type SettingDefinitionItem,
 } from "obsidian";
 import type { ConnectionConfig, PromptConfig } from "./@types";
@@ -22,11 +23,14 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
     }
 
     getControlValue(key: string): unknown {
-        return (this.plugin.settings as Record<string, unknown>)[key];
+        return (this.plugin.settings as unknown as Record<string, unknown>)[
+            key
+        ];
     }
 
     async setControlValue(key: string, value: unknown): Promise<void> {
-        (this.plugin.settings as Record<string, unknown>)[key] = value;
+        (this.plugin.settings as unknown as Record<string, unknown>)[key] =
+            value;
         await this.plugin.saveSettings();
     }
 
@@ -108,10 +112,25 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                     },
                 ],
             },
+            {
+                name: "",
+                render: (setting: Setting) => {
+                    setting.descEl
+                        .createEl("a", {
+                            href: "https://www.buymeacoffee.com/ebullient",
+                        })
+                        .createEl("img", {
+                            attr: {
+                                src: "https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=ebullient&button_colour=8e6787&font_colour=ebebeb&font_family=Inter&outline_colour=392a37&coffee_colour=ecc986",
+                                height: "30px",
+                            },
+                        });
+                },
+            },
         ];
     }
 
-    private connectionListItems(): SettingDefinitionItem[] {
+    private connectionListItems(): SettingDefinition[] {
         return Object.entries(this.plugin.settings.connections).map(
             ([connKey, connConfig]) => ({
                 name: connKey,
@@ -138,7 +157,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         );
     }
 
-    private promptListItems(): SettingDefinitionItem[] {
+    private promptListItems(): SettingDefinition[] {
         return Object.entries(this.plugin.settings.prompts).map(
             ([promptKey, promptConfig]) => ({
                 name: promptConfig.displayLabel,
