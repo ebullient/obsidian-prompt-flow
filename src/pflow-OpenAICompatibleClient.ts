@@ -80,10 +80,12 @@ export class OpenAICompatibleClient extends LLMBaseClient {
                 }
             }
 
-            messages.push({
-                role: "user",
-                content: documentText,
-            });
+            if (documentText.trim()) {
+                messages.push({
+                    role: "user",
+                    content: documentText,
+                });
+            }
 
             const requestBody: ChatCompletionRequest = {
                 model: model,
@@ -144,10 +146,12 @@ export class OpenAICompatibleClient extends LLMBaseClient {
             }
 
             // Add current exchange
-            conversationHistory.push({
-                role: "user",
-                content: documentText,
-            });
+            if (documentText.trim()) {
+                conversationHistory.push({
+                    role: "user",
+                    content: documentText,
+                });
+            }
 
             if (result.trim()) {
                 conversationHistory.push({

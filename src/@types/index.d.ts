@@ -33,7 +33,10 @@ export interface ResolvedPrompt {
     filters?: string[];
     wrapInBlockquote?: boolean;
     calloutHeading?: string;
+    context?: ContextMode;
 }
+
+export type ContextMode = "all" | "none" | "above" | "below";
 
 export type LLMProvider = "ollama" | "openai-compatible";
 

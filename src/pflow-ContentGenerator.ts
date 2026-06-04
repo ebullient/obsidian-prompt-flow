@@ -54,7 +54,6 @@ export class ContentGenerator {
         ctx: MarkdownView | MarkdownFileInfo,
         promptKey: string,
     ) {
-        const docContent = editor.getValue();
         const myWindow = activeWindow;
 
         const activeNote = ctx.file;
@@ -74,21 +73,37 @@ export class ContentGenerator {
             resolved,
         );
 
-        const expandedDocContent = await this.expandLinkedFiles(
-            activeNote,
-            docContent,
-            resolved.excludePatterns,
-            resolved.includeLinks ?? false,
-        );
+        const contextMode = resolved.context ?? "all";
+        let processedContent = "";
 
-        const filteredDocContent = filterCallouts(
-            expandedDocContent,
-            resolved.excludeCalloutTypes,
-        );
-        const processedContent = this.applyPrefilters(
-            filteredDocContent,
-            resolved.filters,
-        );
+        if (contextMode !== "none") {
+            const cursor = editor.getCursor();
+            const lastLine = editor.lastLine();
+            const rawContent =
+                contextMode === "above"
+                    ? editor.getRange({ line: 0, ch: 0 }, cursor)
+                    : contextMode === "below"
+                      ? editor.getRange(cursor, {
+                            line: lastLine,
+                            ch: editor.getLine(lastLine).length,
+                        })
+                      : editor.getValue();
+
+            const expandedDocContent = await this.expandLinkedFiles(
+                activeNote,
+                rawContent,
+                resolved.excludePatterns,
+                resolved.includeLinks ?? false,
+            );
+            const filteredDocContent = filterCallouts(
+                expandedDocContent,
+                resolved.excludeCalloutTypes,
+            );
+            processedContent = this.applyPrefilters(
+                filteredDocContent,
+                resolved.filters,
+            );
+        }
 
         // Insert placeholder and start animation
         const placeholderInfo = this.insertPlaceholder(
@@ -139,7 +154,7 @@ export class ContentGenerator {
         promptKey: string,
         activeNote: TFile,
     ): Promise<string | null> {
-        if (!documentText.trim()) {
+        if (!documentText.trim() && resolvedPrompt.context !== "none") {
             new Notice("Document is empty. Write something first!");
             return null;
         }

@@ -1,4 +1,23 @@
+import type { ContextMode } from "./@types";
+
 export type optionalStrings = string | string[] | undefined;
+
+export const CONTEXT_MODES: readonly ContextMode[] = [
+    "all",
+    "none",
+    "above",
+    "below",
+];
+
+export function parseContextMode(value: unknown): ContextMode | undefined {
+    if (
+        typeof value === "string" &&
+        (CONTEXT_MODES as readonly string[]).includes(value)
+    ) {
+        return value as ContextMode;
+    }
+    return undefined;
+}
 
 /**
  * Normalizes a string or array value to an array of trimmed, non-empty strings.

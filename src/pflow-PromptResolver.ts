@@ -7,6 +7,7 @@ import {
     normalizeToArray,
     type optionalStrings,
     parseBoolean,
+    parseContextMode,
     parseParameterWithConstraint,
     parsePositiveInteger,
 } from "./pflow-Utils";
@@ -116,6 +117,7 @@ export class PromptResolver {
                     typeof frontmatter?.connection === "string"
                         ? frontmatter.connection
                         : undefined;
+                const context = parseContextMode(frontmatter?.context);
 
                 // Strip frontmatter from prompt content
                 const promptText = this.stripFrontmatter(promptContent);
@@ -136,6 +138,7 @@ export class PromptResolver {
                     filters,
                     wrapInBlockquote,
                     calloutHeading,
+                    context,
                 };
             } catch (error) {
                 new Notice(`Could not read prompt file: ${promptFilePath}`);
