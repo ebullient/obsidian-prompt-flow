@@ -40,7 +40,8 @@ export type LLMProvider = "ollama" | "openai-compatible";
 export interface ConnectionConfig {
     provider: LLMProvider;
     baseUrl: string;
-    apiKey?: string;
+    apiKey?: string; // deprecated
+    apiKeySecret?: string;
     defaultModel?: string;
     keepAlive?: string;
     apiPrefix?: string; // Auto-detected API prefix (empty or /api)

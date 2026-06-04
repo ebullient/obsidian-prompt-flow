@@ -3,6 +3,7 @@ import {
     Modal,
     Notice,
     PluginSettingTab,
+    SecretComponent,
     Setting,
     type SettingDefinition,
     type SettingDefinitionItem,
@@ -10,8 +11,6 @@ import {
 import type { ConnectionConfig, PromptConfig } from "./@types";
 import { createLLMClient } from "./pflow-LLMClientFactory";
 import type { PromptFlowPlugin } from "./pflow-Plugin";
-
-// ── Settings tab ─────────────────────────────────────────────────────────────
 
 export class PromptFlowSettingsTab extends PluginSettingTab {
     plugin: PromptFlowPlugin;
@@ -130,6 +129,152 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         ];
     }
 
+    display(): void {
+        const { containerEl } = this;
+        const s = this.plugin.settings;
+        containerEl.empty();
+
+        new Setting(containerEl)
+            .setName("Default connection")
+            .setDesc("Connection to use when prompt doesn't specify one")
+            .addDropdown((dropdown) => {
+                for (const key of Object.keys(s.connections)) {
+                    dropdown.addOption(key, key);
+                }
+                dropdown
+                    .setValue(s.defaultConnection)
+                    .onChange(async (value) => {
+                        s.defaultConnection = value;
+                        await this.plugin.saveSettings();
+                    });
+            });
+
+        new Setting(containerEl).setName("Connections").setHeading();
+
+        for (const [connKey, connConfig] of Object.entries(s.connections)) {
+            const row = new Setting(containerEl)
+                .setName(connKey)
+                .setDesc(`${connConfig.provider} · ${connConfig.baseUrl}`);
+            row.addExtraButton((btn) =>
+                btn
+                    .setIcon("pencil")
+                    .setTooltip("Edit connection")
+                    .onClick(() =>
+                        this.openConnectionModal(connKey, connConfig),
+                    ),
+            );
+            if (connKey !== s.defaultConnection) {
+                row.addExtraButton((btn) =>
+                    btn
+                        .setIcon("trash-2")
+                        .setTooltip("Remove connection")
+                        .onClick(() => this.removeConnection(connKey)),
+                );
+            }
+        }
+
+        new Setting(containerEl).addButton((btn) =>
+            btn
+                .setButtonText("Add connection")
+                .onClick(() => this.openConnectionModal(null, null)),
+        );
+
+        new Setting(containerEl)
+            .setName("Prompts")
+            .setDesc(
+                "Define prompts that can be invoked as commands to generate content using the LLM.",
+            )
+            .setHeading();
+
+        for (const [promptKey, promptConfig] of Object.entries(s.prompts)) {
+            const desc = [
+                promptConfig.promptFile || "no file set",
+                promptConfig.connection
+                    ? `connection: ${promptConfig.connection}`
+                    : null,
+            ]
+                .filter(Boolean)
+                .join(" · ");
+            const row = new Setting(containerEl)
+                .setName(promptConfig.displayLabel)
+                .setDesc(desc);
+            row.addExtraButton((btn) =>
+                btn
+                    .setIcon("pencil")
+                    .setTooltip("Edit prompt")
+                    .onClick(() =>
+                        this.openPromptModal(promptKey, promptConfig),
+                    ),
+            );
+            if (Object.keys(s.prompts).length > 1) {
+                row.addExtraButton((btn) =>
+                    btn
+                        .setIcon("trash-2")
+                        .setTooltip("Remove prompt")
+                        .onClick(() => this.removePrompt(promptKey)),
+                );
+            }
+        }
+
+        new Setting(containerEl).addButton((btn) =>
+            btn
+                .setButtonText("Add prompt")
+                .onClick(() => this.openPromptModal(null, null)),
+        );
+
+        new Setting(containerEl).setName("Link filtering").setHeading();
+
+        new Setting(containerEl)
+            .setName("Exclude link patterns")
+            .setDesc(
+                "Skip links matching these regular expression patterns; one pattern per line.",
+            )
+            .addTextArea((ta) =>
+                ta
+                    .setPlaceholder("^reflect on\ntodo:\n\\[template\\]")
+                    .setValue(s.excludePatterns)
+                    .onChange(async (value) => {
+                        s.excludePatterns = value;
+                        await this.plugin.saveSettings();
+                    }),
+            );
+
+        new Setting(containerEl).setName("Debugging").setHeading();
+
+        new Setting(containerEl)
+            .setName("Show LLM request payloads")
+            .setDesc("Log the exact prompt and document text sent to Ollama.")
+            .addToggle((toggle) =>
+                toggle.setValue(s.showLlmRequests).onChange(async (value) => {
+                    s.showLlmRequests = value;
+                    await this.plugin.saveSettings();
+                }),
+            );
+
+        new Setting(containerEl)
+            .setName("Enable debug logging")
+            .setDesc("Write verbose plugin events to the developer console.")
+            .addToggle((toggle) =>
+                toggle.setValue(s.debugLogging).onChange(async (value) => {
+                    s.debugLogging = value;
+                    await this.plugin.saveSettings();
+                }),
+            );
+
+        new Setting(containerEl).then((setting) => {
+            setting.descEl
+                .createEl("a", {
+                    href: "https://www.buymeacoffee.com/ebullient",
+                })
+                .createEl("img", {
+                    attr: {
+                        src: "https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=ebullient&button_colour=8e6787&font_colour=ebebeb&font_family=Inter&outline_colour=392a37&coffee_colour=ecc986",
+                        height: "30px",
+                    },
+                });
+        });
+    }
+
     private connectionListItems(): SettingDefinition[] {
         return Object.entries(this.plugin.settings.connections).map(
             ([connKey, connConfig]) => ({
@@ -191,6 +336,14 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         );
     }
 
+    private refresh(): void {
+        if (typeof this.update === "function") {
+            this.update();
+        } else {
+            this.display();
+        }
+    }
+
     private openConnectionModal(
         connKey: string | null,
         connConfig: ConnectionConfig | null,
@@ -203,7 +356,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             async (key, config) => {
                 this.plugin.settings.connections[key] = config;
                 await this.plugin.saveSettings();
-                this.update();
+                this.refresh();
             },
         ).open();
     }
@@ -220,7 +373,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             async (key, config) => {
                 this.plugin.settings.prompts[key] = config;
                 await this.plugin.saveSettings();
-                this.update();
+                this.refresh();
             },
         ).open();
     }
@@ -235,13 +388,13 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         }
         delete this.plugin.settings.connections[connKey];
         void this.plugin.saveSettings();
-        this.update();
+        this.refresh();
     }
 
     removePrompt(promptKey: string): void {
         delete this.plugin.settings.prompts[promptKey];
         void this.plugin.saveSettings();
-        this.update();
+        this.refresh();
     }
 }
 
@@ -367,15 +520,16 @@ class ConnectionModal extends Modal {
         if (this.config.provider === "openai-compatible") {
             new Setting(contentEl)
                 .setName("API key")
-                .setDesc("Authentication key for the API")
-                .addText((text) => {
-                    text.inputEl.type = "password";
-                    text.setValue(this.config.apiKey || "").onChange(
-                        (value) => {
-                            this.config.apiKey = value.trim();
-                        },
-                    );
-                });
+                .setDesc(
+                    "Select a secret from the keychain containing the API key",
+                )
+                .addComponent((el) =>
+                    new SecretComponent(this.app, el)
+                        .setValue(this.config.apiKeySecret || "")
+                        .onChange((value) => {
+                            this.config.apiKeySecret = value;
+                        }),
+                );
         }
 
         new Setting(contentEl)
@@ -553,7 +707,7 @@ async function testConnection(
             conn.provider,
             conn.baseUrl,
         );
-        const client = createLLMClient(conn, plugin);
+        const client = createLLMClient(conn, plugin.app, plugin);
         plugin.logInfo("Client created successfully");
 
         const isConnected = await client.checkConnection();

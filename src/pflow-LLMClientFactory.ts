@@ -1,9 +1,11 @@
+import type { App } from "obsidian";
 import type { ConnectionConfig, IOllamaClient, Logger } from "./@types";
 import { OllamaClient } from "./pflow-OllamaClient";
 import { OpenAICompatibleClient } from "./pflow-OpenAICompatibleClient";
 
 export function createLLMClient(
     connection: ConnectionConfig,
+    app: App,
     logger: Logger,
     saveSettings?: () => Promise<void>,
 ): IOllamaClient {
@@ -12,14 +14,16 @@ export function createLLMClient(
             return new OllamaClient(connection.baseUrl, logger);
 
         case "openai-compatible": {
-            const apiKey = connection.apiKey || "";
+            const apiKey = connection.apiKeySecret
+                ? (app.secretStorage.getSecret(connection.apiKeySecret) ?? "")
+                : "";
 
             if (!connection.baseUrl) {
                 throw new Error("Connection URL is required");
             }
             if (!apiKey) {
                 throw new Error(
-                    "API key is required for OpenAI-compatible provider",
+                    "API key secret is required for OpenAI-compatible provider; configure it in connection settings",
                 );
             }
 
