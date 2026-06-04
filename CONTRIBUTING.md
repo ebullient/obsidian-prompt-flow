@@ -3,16 +3,6 @@
 An Obsidian plugin that uses local AI (Ollama) to generate content based on
 customizable prompts and your note context.
 
-## Project Structure
-
-This is a TypeScript Obsidian plugin with the following core files:
-
-- **pflow-Plugin.ts**: Main plugin class
-- **pflow-OllamaClient.ts**: HTTP client for Ollama API
-- **pflow-SettingsTab.ts**: Settings UI
-- **pflow-Constants.ts**: Default settings and configuration
-- **pflow-Utils.ts**: Utility functions for prompt processing
-
 ## Build Commands
 
 ```bash
@@ -92,18 +82,6 @@ instance (default: `http://localhost:11434`).
 - **Error handling**: Use `try/catch` with user-friendly `Notice` messages
 - **Async**: Use `async/await` consistently
 - **Naming**: Follow the `pflow-` prefix pattern for all source files
-
-## Development Patterns
-
-When implementing new features:
-
-1. **Find similar existing functions** in the same module you're modifying
-   (use `Grep` to search)
-2. **Follow established patterns** already in use rather than creating new
-   approaches
-3. **Emulate the style exactly**, especially for method chains and
-   async/await
-4. **Check error handling patterns** and maintain consistency
 
 ## Architecture Overview
 
