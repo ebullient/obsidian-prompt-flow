@@ -174,6 +174,12 @@ export class ContentGenerator {
         const model =
             resolvedPrompt.model || connection.defaultModel || "llama3.1";
 
+        this.plugin.logInfo("Model resolution:", {
+            fromPromptFile: resolvedPrompt.model,
+            fromConnectionDefault: connection.defaultModel,
+            resolved: model,
+        });
+
         if (!connection.baseUrl || !model) {
             new Notice(
                 "Connection URL or model not configured. Please check settings.",

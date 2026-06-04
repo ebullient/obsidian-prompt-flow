@@ -47,6 +47,7 @@ export class OllamaClient extends LLMBaseClient {
                 generateRequest.context = options.context;
             }
 
+            this.logger.logLlmRequest(generateRequest);
             this.logger.logDebug("Send request to", this.baseUrl);
             const response = await this.executeRequest<GenerateResponse>({
                 url: `${this.baseUrl}/api/generate`,

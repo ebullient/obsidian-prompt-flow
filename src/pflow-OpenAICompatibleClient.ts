@@ -114,6 +114,7 @@ export class OpenAICompatibleClient extends LLMBaseClient {
                 body: JSON.stringify(requestBody),
             };
 
+            this.logger.logLlmRequest(requestBody);
             this.logger.logDebug("Send request to", this.baseUrl);
             const response = await this.executeRequest(requestOptions, false);
 
