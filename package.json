@@ -31,7 +31,7 @@
     "@types/codemirror": "5.60.17",
     "@types/node": "^25.5.0",
     "@typescript-eslint/parser": "^8.59.1",
-    "auto-changelog": "^2.5.0",
+    "auto-changelog": "^2.5.1",
     "esbuild": "^0.28.0",
     "esbuild-sass-plugin": "^3.6.0",
     "eslint": "^9.39.4",
