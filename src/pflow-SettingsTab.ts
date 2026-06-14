@@ -6,6 +6,7 @@ import {
     PluginSettingTab,
     SecretComponent,
     Setting,
+    type SettingDefinitionItem,
     type TFile,
 } from "obsidian";
 import type { ConnectionConfig, PromptConfig } from "./@types";
@@ -21,154 +22,173 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
         this.icon = "messages-square";
     }
 
-    display(): void {
-        const { containerEl } = this;
-        const s = this.plugin.settings;
-        containerEl.empty();
-
-        new Setting(containerEl)
-            .setName("Default connection")
-            .setDesc("Connection to use when prompt doesn't specify one")
-            .addDropdown((dropdown) => {
-                for (const key of Object.keys(s.connections)) {
-                    dropdown.addOption(key, key);
-                }
-                dropdown
-                    .setValue(s.defaultConnection)
-                    .onChange(async (value) => {
-                        s.defaultConnection = value;
-                        await this.plugin.saveSettings();
+    getSettingDefinitions(): SettingDefinitionItem[] {
+        return [
+            {
+                name: "Default connection",
+                desc: "Connection to use when prompt doesn't specify one",
+                render: (setting: Setting) => {
+                    setting.addDropdown((dropdown) => {
+                        for (const key of Object.keys(
+                            this.plugin.settings.connections,
+                        )) {
+                            dropdown.addOption(key, key);
+                        }
+                        dropdown
+                            .setValue(this.plugin.settings.defaultConnection)
+                            .onChange(async (value) => {
+                                this.plugin.settings.defaultConnection = value;
+                                await this.plugin.saveSettings();
+                            });
                     });
-            });
-
-        new Setting(containerEl).setName("Connections").setHeading();
-
-        for (const [connKey, connConfig] of Object.entries(s.connections)) {
-            const row = new Setting(containerEl)
-                .setName(connKey)
-                .setDesc(`${connConfig.provider} · ${connConfig.baseUrl}`);
-            row.addExtraButton((btn) =>
-                btn
-                    .setIcon("pencil")
-                    .setTooltip("Edit connection")
-                    .onClick(() =>
-                        this.openConnectionModal(connKey, connConfig),
-                    ),
-            );
-            if (connKey !== s.defaultConnection) {
-                row.addExtraButton((btn) =>
-                    btn
-                        .setIcon("trash-2")
-                        .setTooltip("Remove connection")
-                        .onClick(() => this.removeConnection(connKey)),
-                );
-            }
-        }
-
-        new Setting(containerEl).addButton((btn) =>
-            btn
-                .setButtonText("Add connection")
-                .onClick(() => this.openConnectionModal(null, null)),
-        );
-
-        new Setting(containerEl)
-            .setName("Prompts")
-            .setDesc(
-                "Define prompts that can be invoked as commands to generate content using the LLM.",
-            )
-            .setHeading();
-
-        for (const [promptKey, promptConfig] of Object.entries(s.prompts)) {
-            const desc = [
-                promptConfig.promptFile || "no file set",
-                promptConfig.connection
-                    ? `connection: ${promptConfig.connection}`
-                    : null,
-            ]
-                .filter(Boolean)
-                .join(" · ");
-            const row = new Setting(containerEl)
-                .setName(promptConfig.displayLabel)
-                .setDesc(desc);
-            row.addExtraButton((btn) =>
-                btn
-                    .setIcon("pencil")
-                    .setTooltip("Edit prompt")
-                    .onClick(() =>
-                        this.openPromptModal(promptKey, promptConfig),
-                    ),
-            );
-            if (Object.keys(s.prompts).length > 1) {
-                row.addExtraButton((btn) =>
-                    btn
-                        .setIcon("trash-2")
-                        .setTooltip("Remove prompt")
-                        .onClick(() => this.removePrompt(promptKey)),
-                );
-            }
-        }
-
-        new Setting(containerEl).addButton((btn) =>
-            btn
-                .setButtonText("Add prompt")
-                .onClick(() => this.openPromptModal(null, null)),
-        );
-
-        new Setting(containerEl).setName("Link filtering").setHeading();
-
-        new Setting(containerEl)
-            .setName("Exclude link patterns")
-            .setDesc(
-                "Skip links matching these regular expression patterns; one pattern per line.",
-            )
-            .addTextArea((ta) =>
-                ta
-                    .setPlaceholder("^reflect on\ntodo:\n\\[template\\]")
-                    .setValue(s.excludePatterns)
-                    .onChange(async (value) => {
-                        s.excludePatterns = value;
-                        await this.plugin.saveSettings();
+                },
+            },
+            {
+                type: "list",
+                heading: "Connections",
+                addItem: {
+                    name: "Add connection",
+                    action: () => this.openConnectionModal(null, null),
+                },
+                items: Object.entries(this.plugin.settings.connections).map(
+                    ([connKey, connConfig]) => ({
+                        name: connKey,
+                        desc: `${connConfig.provider} · ${connConfig.baseUrl}`,
+                        render: (setting: Setting) => {
+                            setting.addExtraButton((btn) =>
+                                btn
+                                    .setIcon("pencil")
+                                    .setTooltip("Edit connection")
+                                    .onClick(() =>
+                                        this.openConnectionModal(
+                                            connKey,
+                                            connConfig,
+                                        ),
+                                    ),
+                            );
+                            if (
+                                connKey !==
+                                this.plugin.settings.defaultConnection
+                            ) {
+                                setting.addExtraButton((btn) =>
+                                    btn
+                                        .setIcon("trash-2")
+                                        .setTooltip("Remove connection")
+                                        .onClick(() =>
+                                            this.removeConnection(connKey),
+                                        ),
+                                );
+                            }
+                        },
                     }),
-            );
-
-        new Setting(containerEl).setName("Debugging").setHeading();
-
-        new Setting(containerEl)
-            .setName("Show LLM request payloads")
-            .setDesc("Log the exact prompt and document text sent to Ollama.")
-            .addToggle((toggle) =>
-                toggle.setValue(s.showLlmRequests).onChange(async (value) => {
-                    s.showLlmRequests = value;
-                    await this.plugin.saveSettings();
-                }),
-            );
-
-        new Setting(containerEl)
-            .setName("Enable debug logging")
-            .setDesc("Write verbose plugin events to the developer console.")
-            .addToggle((toggle) =>
-                toggle.setValue(s.debugLogging).onChange(async (value) => {
-                    s.debugLogging = value;
-                    await this.plugin.saveSettings();
-                }),
-            );
-
-        new Setting(containerEl).then((setting) => {
-            setting.descEl
-                .createEl("a", {
-                    href: "https://www.buymeacoffee.com/ebullient",
-                })
-                .createEl("img", {
-                    attr: {
-                        src: "https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=ebullient&button_colour=8e6787&font_colour=ebebeb&font_family=Inter&outline_colour=392a37&coffee_colour=ecc986",
-                        height: "30px",
+                ),
+            },
+            {
+                type: "list",
+                heading: "Prompts",
+                desc: "Define prompts that can be invoked as commands to generate content using the LLM.",
+                addItem: {
+                    name: "Add prompt",
+                    action: () => this.openPromptModal(null, null),
+                },
+                items: Object.entries(this.plugin.settings.prompts).map(
+                    ([promptKey, promptConfig]) => ({
+                        name: promptConfig.displayLabel,
+                        desc: [
+                            promptConfig.promptFile || "no file set",
+                            promptConfig.connection
+                                ? `connection: ${promptConfig.connection}`
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .join(" · "),
+                        render: (setting: Setting) => {
+                            setting.addExtraButton((btn) =>
+                                btn
+                                    .setIcon("pencil")
+                                    .setTooltip("Edit prompt")
+                                    .onClick(() =>
+                                        this.openPromptModal(
+                                            promptKey,
+                                            promptConfig,
+                                        ),
+                                    ),
+                            );
+                            if (
+                                Object.keys(this.plugin.settings.prompts)
+                                    .length > 1
+                            ) {
+                                setting.addExtraButton((btn) =>
+                                    btn
+                                        .setIcon("trash-2")
+                                        .setTooltip("Remove prompt")
+                                        .onClick(() =>
+                                            this.removePrompt(promptKey),
+                                        ),
+                                );
+                            }
+                        },
+                    }),
+                ),
+            },
+            {
+                type: "group",
+                heading: "Link filtering",
+                items: [
+                    {
+                        name: "Exclude link patterns",
+                        desc: "Skip links matching these regular expression patterns; one pattern per line.",
+                        control: {
+                            type: "textarea",
+                            key: "excludePatterns",
+                            placeholder: "^reflect on\ntodo:\n\\[template\\]",
+                            rows: 4,
+                        },
                     },
-                });
-        });
+                ],
+            },
+            {
+                type: "group",
+                heading: "Debugging",
+                items: [
+                    {
+                        name: "Show LLM request payloads",
+                        desc: "Log the exact prompt and document text sent to Ollama.",
+                        control: {
+                            type: "toggle",
+                            key: "showLlmRequests",
+                        },
+                    },
+                    {
+                        name: "Enable debug logging",
+                        desc: "Write verbose plugin events to the developer console.",
+                        control: {
+                            type: "toggle",
+                            key: "debugLogging",
+                        },
+                    },
+                ],
+            },
+            {
+                name: "",
+                render: (setting: Setting) => {
+                    setting.descEl
+                        .createEl("a", {
+                            href: "https://www.buymeacoffee.com/ebullient",
+                        })
+                        .createEl("img", {
+                            attr: {
+                                src: "https://img.buymeacoffee.com/button-api/?text=Buy me a coffee&emoji=☕&slug=ebullient&button_colour=8e6787&font_colour=ebebeb&font_family=Inter&outline_colour=392a37&coffee_colour=ecc986",
+                                height: "30px",
+                            },
+                        });
+                },
+            },
+        ];
     }
 
     private refresh(): void {
-        this.display();
+        this.update();
     }
 
     private openConnectionModal(
@@ -181,6 +201,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             connKey,
             connConfig,
             async (key, config) => {
+                delete config.apiKey;
                 this.plugin.settings.connections[key] = config;
                 await this.plugin.saveSettings();
                 this.refresh();
