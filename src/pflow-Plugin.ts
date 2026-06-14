@@ -192,6 +192,17 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         }
 
         this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
+
+        // Remove deprecated plaintext apiKey from all connections
+        if (this.settings.connections) {
+            for (const conn of Object.values(this.settings.connections)) {
+                if (conn.apiKey) {
+                    delete conn.apiKey;
+                    migrated = true;
+                }
+            }
+        }
+
         if (migrated) {
             await this.saveSettings();
         } else {

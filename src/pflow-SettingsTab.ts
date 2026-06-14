@@ -181,6 +181,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             connKey,
             connConfig,
             async (key, config) => {
+                delete config.apiKey;
                 this.plugin.settings.connections[key] = config;
                 await this.plugin.saveSettings();
                 this.refresh();
