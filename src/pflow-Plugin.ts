@@ -94,7 +94,9 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             );
         }
 
-        return createLLMClient(connection, this, () => this.saveSettings());
+        return createLLMClient(connection, this, this, () =>
+            this.saveSettings(),
+        );
     }
 
     private clearCommands() {
