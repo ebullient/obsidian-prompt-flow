@@ -2,11 +2,30 @@ import type { ContextMode } from "./@types";
 
 export type optionalStrings = string | string[] | undefined;
 
+export const EMBEDDED_CONTENT_MARKER =
+    "\n----- EMBEDDED/LINKED CONTENT -----\n";
+const CHARS_PER_TOKEN = 3;
+const WINDOW_HEADROOM = 0.8;
+
+export function windowFilter(content: string, numCtx: number): string {
+    const budget = Math.floor(numCtx * CHARS_PER_TOKEN * WINDOW_HEADROOM);
+    if (content.length <= budget) {
+        return content;
+    }
+    const markerPos = content.indexOf(EMBEDDED_CONTENT_MARKER);
+    const trimmed = markerPos >= 0 ? content.substring(0, markerPos) : content;
+    if (trimmed.length <= budget) {
+        return trimmed;
+    }
+    return trimmed.substring(0, budget);
+}
+
 export const CONTEXT_MODES: readonly ContextMode[] = [
     "all",
     "none",
     "above",
     "below",
+    "selection",
 ];
 
 export function parseContextMode(value: unknown): ContextMode | undefined {

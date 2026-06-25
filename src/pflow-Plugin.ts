@@ -329,9 +329,12 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         }
     }
 
-    logLlmRequest(payload: unknown): void {
+    logLlmRequest(payload: unknown, request = true): void {
         if (this.settings?.showLlmRequests) {
-            console.debug("(PF)[LLM Request]", payload);
+            console.debug(
+                request ? "(PF)[LLM Request]" : "(PF)[LLM Response]",
+                payload,
+            );
         }
     }
 }

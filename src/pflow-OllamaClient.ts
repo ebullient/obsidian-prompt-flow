@@ -56,8 +56,17 @@ export class OllamaClient extends LLMBaseClient {
                 body: JSON.stringify(generateRequest),
             });
 
+            this.logger.logLlmRequest(response.json, false);
+
+            if (response.json.done_reason === "length") {
+                throw new Error(
+                    "Context window full — reduce document size or" +
+                        " increase num_ctx",
+                );
+            }
+
             return {
-                response: response.json.response?.trim() ?? null,
+                response: response.json.response?.trim() || null,
                 context: response.json.context,
             };
         }, "Ollama");

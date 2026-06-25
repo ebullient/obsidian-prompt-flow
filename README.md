@@ -144,6 +144,7 @@ day.
 - `top_p`: Nucleus sampling threshold (0.0-1.0)
 - `top_k`: Top-k sampling limit (Ollama only)
 - `repeat_penalty`: Penalty for repetition (>0, default: 1.1, Ollama only)
+- `context`: Portion of the note to send (`above`, `below`, `selection`, `none`, or omit for full note)
 - `isContinuous`: Keep conversation context between requests (default: false)
 - `includeLinks`: Auto-expand `[[wikilinks]]` to include linked content (default: false)
 - `excludePatterns`: Array of regex patterns to exclude links
@@ -163,6 +164,41 @@ When `includeLinks` is enabled, the plugin automatically includes content from `
 **Link filtering:**
 
 Configure global exclude patterns in Settings → Link filtering, or use `excludePatterns` in prompt frontmatter to filter specific links.
+
+### Context Management
+
+Two settings control how much of the note is sent to the model.
+
+**`context` — what to include from the note**
+
+The `context` parameter selects which part of the active note is used as input, relative to the cursor position:
+
+| Value | Behavior |
+| ----- | -------- |
+| *(omitted)* | Full note content |
+| `above` | Text from the start of the note up to the cursor |
+| `below` | Text from the cursor to the end of the note |
+| `selection` | Currently selected text; falls back to no content if nothing is selected |
+| `none` | No note content — prompt text only |
+
+Use `above` when the prompt should summarize or act on what you've written so far. Use `below` for prompts that process the remainder of a note. Use `selection` for prompts that should act on a highlighted passage. Use `none` when the prompt is self-contained and note content would only add noise.
+
+**`num_ctx` and the built-in `window` filter**
+
+`num_ctx` sets the context window size in tokens passed to the model. For Ollama this controls how much the model can hold in memory at once; for OpenAI-compatible providers it maps to `max_tokens`.
+
+When note content (including any expanded wikilinks) may exceed the model's context window, add `window` to the `filters` list. It trims the content to fit within the budget (`num_ctx × 3 × 0.8` characters). If the note contains embedded or linked content (appended after the `EMBEDDED/LINKED CONTENT` marker), that section is dropped first. If the primary note content still exceeds the budget, it is truncated to fit.
+
+```markdown
+---
+num_ctx: 4096
+filters:
+- window
+---
+Summarize the key points from my notes.
+```
+
+`num_ctx` must be set when using the `window` filter — the plugin will show an error if it is missing.
 
 ### Advanced: External Filter API
 
@@ -191,7 +227,7 @@ filters:
 Generate a thoughtful reflection question.
 ```
 
-Filters are applied sequentially in the order specified before sending content to the LLM.
+Filters are applied in the order specified before sending content to the LLM.
 
 ## Configuration Reference
 

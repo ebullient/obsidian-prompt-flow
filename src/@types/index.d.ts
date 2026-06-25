@@ -36,7 +36,7 @@ export interface ResolvedPrompt {
     context?: ContextMode;
 }
 
-export type ContextMode = "all" | "none" | "above" | "below";
+export type ContextMode = "all" | "none" | "above" | "below" | "selection";
 
 export type LLMProvider = "ollama" | "openai-compatible";
 
@@ -86,7 +86,7 @@ export interface GenerateResult {
 }
 
 export interface Logger {
-    logLlmRequest(request: unknown): void;
+    logLlmRequest(payload: unknown, request?: boolean): void;
     logInfo(message: string, ...params: unknown[]): void;
     logWarn(message: string, ...params: unknown[]): void;
     logError(error: unknown, message?: string, ...params: unknown[]): string;

@@ -19,6 +19,7 @@ import {
     filterCallouts,
     formatAsBlockquote,
     parseLinkReference,
+    windowFilter,
 } from "./pflow-Utils";
 
 const MAX_DEPTH = 2;
@@ -76,7 +77,12 @@ export class ContentGenerator {
         const contextMode = resolved.context ?? "all";
         let processedContent = "";
 
-        if (contextMode !== "none") {
+        const selection =
+            contextMode === "selection" ? editor.getSelection() : "";
+        if (
+            contextMode !== "none" &&
+            !(contextMode === "selection" && !selection)
+        ) {
             const cursor = editor.getCursor();
             const lastLine = editor.lastLine();
             const rawContent =
@@ -87,7 +93,9 @@ export class ContentGenerator {
                             line: lastLine,
                             ch: editor.getLine(lastLine).length,
                         })
-                      : editor.getValue();
+                      : contextMode === "selection"
+                        ? selection
+                        : editor.getValue();
 
             const expandedDocContent = await this.expandLinkedFiles(
                 activeNote,
@@ -101,6 +109,7 @@ export class ContentGenerator {
             );
             processedContent = this.applyPrefilters(
                 filteredDocContent,
+                resolved,
                 resolved.filters,
             );
         }
@@ -265,7 +274,11 @@ export class ContentGenerator {
         }
     }
 
-    private applyPrefilters(content: string, filterNames?: string[]): string {
+    private applyPrefilters(
+        content: string,
+        resolved: ResolvedPrompt,
+        filterNames?: string[],
+    ): string {
         if (!filterNames || filterNames.length === 0) {
             return content;
         }
@@ -273,24 +286,36 @@ export class ContentGenerator {
         let processedContent = content;
 
         for (const filterName of filterNames) {
-            const promptFlow = this.plugin.promptFlow();
-            const filterFn = promptFlow.filters?.[filterName];
-            if (!filterFn) {
-                this.plugin.logWarn(
-                    `Filter "${filterName}" not found in window.promptFlow.filters`,
-                );
-                continue;
-            }
-
             try {
                 this.plugin.logDebug("Filtering:", filterName);
+                if (filterName === "window") {
+                    if (resolved.numCtx === undefined) {
+                        this.plugin.logWarn(
+                            'Filter "window" requires num_ctx to be set in the prompt file',
+                        );
+                        continue;
+                    }
+                    processedContent = windowFilter(
+                        processedContent,
+                        resolved.numCtx,
+                    );
+                    continue;
+                }
+
+                const promptFlow = this.plugin.promptFlow();
+                const filterFn = promptFlow.filters?.[filterName];
+                if (!filterFn) {
+                    this.plugin.logWarn(
+                        `Filter "${filterName}" not found in window.promptFlow.filters`,
+                    );
+                    continue;
+                }
                 processedContent = filterFn(processedContent);
             } catch (error) {
                 this.plugin.logError(
                     error,
                     `Error applying filter "${filterName}"`,
                 );
-                // Continue with original content on error
                 return content;
             }
         }
