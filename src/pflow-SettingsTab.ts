@@ -172,6 +172,7 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
             {
                 name: "",
                 render: (setting: Setting) => {
+                    setting.descEl.addClass("prompt-flow-coffee");
                     setting.descEl
                         .createEl("a", {
                             href: "https://www.buymeacoffee.com/ebullient",
