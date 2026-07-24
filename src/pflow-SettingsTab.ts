@@ -13,6 +13,85 @@ import type { ConnectionConfig, PromptConfig } from "./@types";
 import { createLLMClient } from "./pflow-LLMClientFactory";
 import type { PromptFlowPlugin } from "./pflow-Plugin";
 
+const PROMPT_ONLY_SETTINGS: { name: string; desc: string }[] = [
+    {
+        name: "prompt-file",
+        desc:
+            "Note frontmatter only. Overrides the prompt file configured " +
+            "in settings for this note.",
+    },
+    {
+        name: "model",
+        desc: "Overrides the connection's default model for this prompt.",
+    },
+    {
+        name: "num_ctx",
+        desc:
+            "Context window size in tokens (max_tokens for " +
+            "OpenAI-compatible). Required when using the window filter.",
+    },
+    {
+        name: "temperature",
+        desc: "Randomness of output, 0.0-2.0. Default: 0.8.",
+    },
+    {
+        name: "top_p",
+        desc: "Nucleus sampling threshold, 0.0-1.0.",
+    },
+    {
+        name: "top_k",
+        desc: "Top-k sampling limit. Ollama only.",
+    },
+    {
+        name: "repeat_penalty",
+        desc: "Penalty for repetition, > 0. Default: 1.1. Ollama only.",
+    },
+    {
+        name: "context",
+        desc:
+            "Portion of the note to send: above, below, selection, " +
+            "none, or omit for the full note.",
+    },
+    {
+        name: "isContinuous",
+        desc:
+            "Keep conversation context between requests for this " +
+            "prompt/note combination. Default: false.",
+    },
+    {
+        name: "includeLinks",
+        desc:
+            "Auto-expand [[wikilinks]] to include linked content. " +
+            "Default: false.",
+    },
+    {
+        name: "excludePatterns",
+        desc:
+            "Regex patterns to exclude specific links, overriding the " +
+            "global exclude patterns for this prompt.",
+    },
+    {
+        name: "excludeCalloutTypes",
+        desc:
+            "Callout types to filter out of note content before " +
+            "sending it to the model.",
+    },
+    {
+        name: "filters",
+        desc:
+            "Names of filter functions to apply to note content, in " +
+            "order, before sending it to the model.",
+    },
+    {
+        name: "wrapInBlockquote",
+        desc: "Format generated output as a blockquote. Default: true.",
+    },
+    {
+        name: "calloutHeading",
+        desc: "Heading text to use when formatting output as a callout.",
+    },
+];
+
 export class PromptFlowSettingsTab extends PluginSettingTab {
     plugin: PromptFlowPlugin;
 
@@ -168,6 +247,17 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                         },
                     },
                 ],
+            },
+            {
+                name: "Prompt-only settings",
+                desc: createFragment((el) => {
+                    const ul = el.createEl("ul");
+                    for (const item of PROMPT_ONLY_SETTINGS) {
+                        const li = ul.createEl("li");
+                        li.createEl("strong", { text: item.name });
+                        li.appendText(`: ${item.desc}`);
+                    }
+                }),
             },
             {
                 name: "",
