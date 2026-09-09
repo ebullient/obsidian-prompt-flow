@@ -39,3 +39,21 @@ describe("windowFilter", () => {
         expect(windowFilter(content, numCtx)).toBe(content);
     });
 });
+
+describe("windowFilter surrogate safety", () => {
+    // budget = floor(10 * 3 * 0.8) = 24, so the cut lands at index 24 --
+    // exactly inside the emoji that starts at index 23.
+    it("does not leave a split surrogate pair at the boundary", () => {
+        const content = `${"a".repeat(23)}\uD83C\uDF89 trailing content here`;
+        const result = windowFilter(content, 10);
+        expect(result).toBe("a".repeat(23));
+        const last = result.charCodeAt(result.length - 1);
+        expect(last >= 0xd800 && last <= 0xdbff).toBe(false);
+    });
+
+    it("keeps an emoji that fits entirely within the budget", () => {
+        const content = `${"a".repeat(22)}\uD83C\uDF89 trailing content here`;
+        const result = windowFilter(content, 10);
+        expect(result).toBe(`${"a".repeat(22)}\uD83C\uDF89`);
+    });
+});

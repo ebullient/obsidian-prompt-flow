@@ -17,7 +17,36 @@ export function windowFilter(content: string, numCtx: number): string {
     if (trimmed.length <= budget) {
         return trimmed;
     }
-    return trimmed.substring(0, budget);
+    // substring counts UTF-16 code units, so a budget landing inside a
+    // surrogate pair splits an emoji and leaves an orphan. Drop the orphan --
+    // the character was being cut anyway.
+    const cut = trimmed.substring(0, budget);
+    const last = cut.charCodeAt(cut.length - 1);
+    if (last >= 0xd800 && last <= 0xdbff) {
+        return cut.slice(0, -1);
+    }
+    return cut;
+}
+
+/**
+ * Replace unpaired UTF-16 surrogates with U+FFFD.
+ *
+ * JSON.stringify emits a lone surrogate as-is (e.g. "\ud83c"), which is legal
+ * JavaScript but illegal JSON. Strict parsers reject the whole document --
+ * llama-server answers 500 -- so one malformed character in a note makes the
+ * entire request fail with nothing useful in the error.
+ *
+ * U+FFFD rather than deletion is deliberate: the replacement character shows
+ * up in the output and points at the note that needs fixing. A silent drop
+ * leaves it broken forever.
+ */
+export function replaceUnpairedSurrogates(text: string): string {
+    // Match a well-formed pair first; anything else matching a lone surrogate
+    // is by definition unpaired.
+    return text.replace(
+        /[\uD800-\uDBFF][\uDC00-\uDFFF]|[\uD800-\uDFFF]/g,
+        (m) => (m.length === 2 ? m : "\uFFFD"),
+    );
 }
 
 export const CONTEXT_MODES: readonly ContextMode[] = [

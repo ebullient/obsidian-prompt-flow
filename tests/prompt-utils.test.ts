@@ -8,6 +8,7 @@ import {
     getFrontmatterValue,
     extractFrontmatterValue,
     parseParameterWithConstraint,
+    replaceUnpairedSurrogates,
 } from "../src/pflow-Utils";
 
 describe("normalizeToArray", () => {
@@ -252,5 +253,34 @@ describe("parseParameterWithConstraint", () => {
         expect(
             parseParameterWithConstraint(fm, ["temp"], (val) => val >= 0),
         ).toBeUndefined();
+    });
+});
+
+describe("replaceUnpairedSurrogates", () => {
+    it("leaves ordinary text unchanged", () => {
+        expect(replaceUnpairedSurrogates("hello world")).toBe("hello world");
+    });
+
+    it("preserves well-formed emoji", () => {
+        const s = "tags: me/\u2705/\u270D\uFE0F and \uD83C\uDF89";
+        expect(replaceUnpairedSurrogates(s)).toBe(s);
+    });
+
+    it("replaces a lone high surrogate", () => {
+        expect(replaceUnpairedSurrogates("- \uD83C tag")).toBe("- \uFFFD tag");
+    });
+
+    it("replaces a lone low surrogate", () => {
+        expect(replaceUnpairedSurrogates("x\uDF89y")).toBe("x\uFFFDy");
+    });
+
+    it("replaces each orphan independently", () => {
+        expect(replaceUnpairedSurrogates("\uD83C\uD83C")).toBe("\uFFFD\uFFFD");
+    });
+
+    it("keeps a valid pair that follows an orphan", () => {
+        expect(replaceUnpairedSurrogates("\uD83C\uD83C\uDF89")).toBe(
+            "\uFFFD\uD83C\uDF89",
+        );
     });
 });

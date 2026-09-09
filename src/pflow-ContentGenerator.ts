@@ -19,6 +19,7 @@ import {
     filterCallouts,
     formatAsBlockquote,
     parseLinkReference,
+    replaceUnpairedSurrogates,
     windowFilter,
 } from "./pflow-Utils";
 
@@ -243,20 +244,28 @@ export class ContentGenerator {
             keepAlive: connection.keepAlive,
         };
 
+        // A note carrying a broken emoji would otherwise fail the whole
+        // request as invalid JSON. Sanitize before logging so the log shows
+        // exactly what was sent.
+        const safeSystemPrompt = replaceUnpairedSurrogates(
+            resolvedPrompt.prompt,
+        );
+        const safeDocumentText = replaceUnpairedSurrogates(documentText);
+
         this.plugin.logLlmRequest({
             model,
             promptKey,
             file: activeNote.path,
-            systemPrompt: resolvedPrompt.prompt,
-            documentText,
+            systemPrompt: safeSystemPrompt,
+            documentText: safeDocumentText,
             options: generateOptions,
         });
 
         try {
             const result = await client.generate(
                 model,
-                resolvedPrompt.prompt,
-                documentText,
+                safeSystemPrompt,
+                safeDocumentText,
                 generateOptions,
             );
 
