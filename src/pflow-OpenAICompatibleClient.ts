@@ -17,6 +17,12 @@ interface ChatCompletionRequest {
     messages: ChatMessage[];
     temperature?: number;
     top_p?: number;
+    // top_k and repeat_penalty are not part of the OpenAI schema. They are
+    // accepted as top-level extensions by llama.cpp/llama-server and others,
+    // and are only sent when a prompt actually sets them. A strict OpenAI
+    // endpoint will reject them.
+    top_k?: number;
+    repeat_penalty?: number;
     max_tokens?: number;
     stream: boolean;
 }
@@ -31,6 +37,9 @@ interface ChatCompletionChunk {
         delta: {
             role?: string;
             content?: string;
+            // Thinking models emit reasoning separately from the answer.
+            // llama-server does this by default with --jinja.
+            reasoning_content?: string;
         };
         finish_reason: string | null;
     }>;
@@ -99,8 +108,14 @@ export class OpenAICompatibleClient extends LLMBaseClient {
             if (options?.topP !== undefined) {
                 requestBody.top_p = options.topP;
             }
-            if (options?.numCtx !== undefined) {
-                requestBody.max_tokens = options.numCtx;
+            if (options?.topK !== undefined) {
+                requestBody.top_k = options.topK;
+            }
+            if (options?.repeatPenalty !== undefined) {
+                requestBody.repeat_penalty = options.repeatPenalty;
+            }
+            if (options?.maxTokens !== undefined) {
+                requestBody.max_tokens = options.maxTokens;
             }
 
             const apiPrefix = this.connectionConfig.apiPrefix ?? "";
@@ -114,7 +129,7 @@ export class OpenAICompatibleClient extends LLMBaseClient {
                 body: JSON.stringify(requestBody),
             };
 
-            this.logger.logLlmRequest(requestBody);
+            this.logger.logLlmRequest(requestBody, "http");
             this.logger.logDebug("Send request to", this.baseUrl);
             const response = await this.executeRequest(requestOptions, false);
 
@@ -124,14 +139,47 @@ export class OpenAICompatibleClient extends LLMBaseClient {
                 );
             }
 
-            // Parse SSE response with chunk handler
+            // Parse SSE response with chunk handler.
+            // finish_reason is captured here rather than thrown from inside
+            // the callback: parseSSEStream swallows callback exceptions as
+            // chunk parse failures.
+            const meta: { finishReason?: string; reasoning?: string } = {};
             const result = await this.parseSSEStream(
                 response.arrayBuffer,
                 (data: string) => {
                     const chunk = JSON.parse(data) as ChatCompletionChunk;
-                    return chunk.choices[0]?.delta?.content || "";
+                    const choice = chunk.choices[0];
+                    if (choice?.finish_reason) {
+                        meta.finishReason = choice.finish_reason;
+                    }
+                    if (choice?.delta?.reasoning_content) {
+                        meta.reasoning =
+                            (meta.reasoning ?? "") +
+                            choice.delta.reasoning_content;
+                    }
+                    return choice?.delta?.content || "";
                 },
             );
+
+            // Parity with OllamaClient: log the response before anything can
+            // throw, so a truncated result is still visible. The stream has no
+            // single body, so this is the assembled equivalent.
+            this.logger.logLlmRequest(
+                { content: result, finish_reason: meta.finishReason },
+                "response",
+            );
+
+            if (meta.reasoning) {
+                this.logger.logReasoning(meta.reasoning);
+            }
+
+            if (meta.finishReason === "length") {
+                throw new Error(
+                    "Response truncated: hit the generation limit." +
+                        " Raise max_tokens in the prompt, reduce the document" +
+                        " size, or increase the server's context size",
+                );
+            }
 
             // Build conversation history for continuous mode
             const conversationHistory: ChatMessage[] = [];

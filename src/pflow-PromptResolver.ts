@@ -70,6 +70,14 @@ export class PromptResolver {
                         ? frontmatter.model
                         : undefined;
                 const numCtx = parsePositiveInteger(frontmatter?.num_ctx);
+                // max_tokens caps generation length. Distinct from num_ctx,
+                // which is the context window and, for openai-compatible
+                // connections, is fixed by the server at startup.
+                const maxTokens = parsePositiveInteger(
+                    frontmatter?.max_tokens ??
+                        frontmatter?.maxTokens ??
+                        frontmatter?.["max-tokens"],
+                );
                 const temperature = parseParameterWithConstraint(
                     frontmatter,
                     ["temperature", "temp"],
@@ -126,6 +134,7 @@ export class PromptResolver {
                     connection,
                     model,
                     numCtx,
+                    maxTokens,
                     isContinuous,
                     includeLinks,
                     excludePatterns,

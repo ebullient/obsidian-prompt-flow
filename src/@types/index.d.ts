@@ -21,6 +21,7 @@ export interface ResolvedPrompt {
     connection?: string;
     model?: string;
     numCtx?: number;
+    maxTokens?: number;
     isContinuous?: boolean;
     includeLinks?: boolean;
     excludePatterns?: RegExp[];
@@ -52,6 +53,7 @@ export interface ConnectionConfig {
 
 export interface PromptFlowSettings {
     showLlmRequests: boolean;
+    showReasoning: boolean;
     debugLogging: boolean;
     defaultConnection: string;
     connections: Record<string, ConnectionConfig>;
@@ -72,6 +74,7 @@ export interface IOllamaClient {
 
 export interface GenerateOptions {
     numCtx?: number;
+    maxTokens?: number;
     context?: number[];
     temperature?: number;
     topP?: number;
@@ -85,8 +88,11 @@ export interface GenerateResult {
     context?: number[];
 }
 
+export type LlmLogKind = "request" | "http" | "response";
+
 export interface Logger {
-    logLlmRequest(payload: unknown, request?: boolean): void;
+    logLlmRequest(payload: unknown, kind?: LlmLogKind): void;
+    logReasoning(reasoning: string): void;
     logInfo(message: string, ...params: unknown[]): void;
     logWarn(message: string, ...params: unknown[]): void;
     logError(error: unknown, message?: string, ...params: unknown[]): string;

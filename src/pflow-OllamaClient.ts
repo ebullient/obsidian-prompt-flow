@@ -27,6 +27,9 @@ export class OllamaClient extends LLMBaseClient {
             if (options?.numCtx !== undefined) {
                 requestOptions.num_ctx = options.numCtx;
             }
+            if (options?.maxTokens !== undefined) {
+                requestOptions.num_predict = options.maxTokens;
+            }
             if (options?.temperature !== undefined) {
                 requestOptions.temperature = options.temperature;
             }
@@ -47,7 +50,7 @@ export class OllamaClient extends LLMBaseClient {
                 generateRequest.context = options.context;
             }
 
-            this.logger.logLlmRequest(generateRequest);
+            this.logger.logLlmRequest(generateRequest, "http");
             this.logger.logDebug("Send request to", this.baseUrl);
             const response = await this.executeRequest<GenerateResponse>({
                 url: `${this.baseUrl}/api/generate`,
@@ -56,7 +59,11 @@ export class OllamaClient extends LLMBaseClient {
                 body: JSON.stringify(generateRequest),
             });
 
-            this.logger.logLlmRequest(response.json, false);
+            this.logger.logLlmRequest(response.json, "response");
+
+            if (response.json.thinking) {
+                this.logger.logReasoning(response.json.thinking);
+            }
 
             if (response.json.done_reason === "length") {
                 throw new Error(

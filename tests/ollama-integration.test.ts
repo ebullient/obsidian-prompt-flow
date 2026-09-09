@@ -23,6 +23,9 @@ const logger: Logger = {
     },
     logLlmRequest: function (payload: unknown): void {
         console.log(payload);
+    },
+    logReasoning: function (reasoning: string): void {
+        console.log(reasoning);
     }
 }
 

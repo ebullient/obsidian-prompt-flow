@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: PromptFlowSettings = {
     excludePatterns: "",
     debugLogging: false,
     showLlmRequests: false,
+    showReasoning: false,
     connections: {
         "local-ollama": {
             provider: "ollama",

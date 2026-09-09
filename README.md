@@ -139,11 +139,12 @@ day.
 
 - `connection`: Connection name to use (overrides default)
 - `model`: Specific model to use
-- `num_ctx`: Context window size (tokens) or max_tokens for OpenAI-compatible
+- `num_ctx`: Context window size (tokens). Ollama only; also sets the `window` filter budget
+- `max_tokens`: Cap on generated length. Sent as `max_tokens` (OpenAI-compatible) or `num_predict` (Ollama)
 - `temperature`: Randomness (0.0-2.0, default: 0.8)
 - `top_p`: Nucleus sampling threshold (0.0-1.0)
-- `top_k`: Top-k sampling limit (Ollama only)
-- `repeat_penalty`: Penalty for repetition (>0, default: 1.1, Ollama only)
+- `top_k`: Top-k sampling limit (not in the OpenAI schema; sent as an extension)
+- `repeat_penalty`: Penalty for repetition (>0, default: 1.1; not in the OpenAI schema; sent as an extension)
 - `context`: Portion of the note to send (`above`, `below`, `selection`, `none`, or omit for full note)
 - `isContinuous`: Keep conversation context between requests (default: false)
 - `includeLinks`: Auto-expand `[[wikilinks]]` to include linked content (default: false)
@@ -185,7 +186,11 @@ Use `above` when the prompt should summarize or act on what you've written so fa
 
 **`num_ctx` and the built-in `window` filter**
 
-`num_ctx` sets the context window size in tokens passed to the model. For Ollama this controls how much the model can hold in memory at once; for OpenAI-compatible providers it maps to `max_tokens`.
+`num_ctx` is only sent to Ollama. It is the model's working memory — how many tokens it holds at once, prompt and output together — not a limit on output length, which is `max_tokens`.
+
+Ollama defaults well below what the model advertises, and overflow is silent: the answer still reads well, written from the tail of what survived. Setting `num_ctx` in a prompt overrides that for the call. See [ollama#2714](https://github.com/ollama/ollama/issues/2714).
+
+OpenAI-compatible connections ignore it — context is fixed when the server starts (`--ctx-size` for llama-server).
 
 When note content (including any expanded wikilinks) may exceed the model's context window, add `window` to the `filters` list. It trims the content to fit within the budget (`num_ctx × 3 × 0.8` characters). If the note contains embedded or linked content (appended after the `EMBEDDED/LINKED CONTENT` marker), that section is dropped first. If the primary note content still exceeds the budget, it is truncated to fit.
 
@@ -198,7 +203,13 @@ filters:
 Summarize the key points from my notes.
 ```
 
-`num_ctx` must be set when using the `window` filter — the plugin will show an error if it is missing.
+`num_ctx` must be set when using the `window` filter — the plugin will show an error if it is missing. This applies on every backend, including OpenAI-compatible ones that otherwise ignore `num_ctx`: the budget is calculated locally, before anything is sent.
+
+**`max_tokens` and thinking models**
+
+`max_tokens` caps how much the model generates, and is independent of `num_ctx`.
+
+On a thinking model — Qwen3 and others that reason before answering — the budget is spent on reasoning *first*. A cap that looks generous for the answer can be consumed entirely before the model starts writing, producing an empty response rather than a short one. Leave real headroom, or turn thinking off for that prompt (Qwen3 honours `/no_think` in the prompt text).
 
 ### Advanced: External Filter API
 
@@ -247,11 +258,13 @@ Configure one or more LLM provider connections in Settings → Prompt Flow → C
 
 - **Connection name**: Unique identifier (e.g., "openrouter", "openai")
 - **Provider**: OpenAI-compatible
-- **Base URL**: API endpoint URL
+- **Base URL**: API endpoint root, *without* `/v1` — the plugin appends the path itself (e.g. `https://host:8443`, not `https://host:8443/v1`)
 - **API Key**: Your API key for the service
 - **Default model**: Model identifier (provider-specific)
 
 The plugin auto-detects the correct API path structure for different OpenAI-compatible services (standard `/v1` or OpenWebUI `/api/v1`).
+
+**Keep alive** is not offered for OpenAI-compatible connections, and a value left over from a connection that was previously Ollama is ignored. How long a model stays resident is a server-side setting there — with llama-swap it is the per-model `ttl` in its config.
 
 ### Link Filtering
 
@@ -260,6 +273,7 @@ The plugin auto-detects the correct API path structure for different OpenAI-comp
 ### Debug Options
 
 - **Show LLM request payloads**: Log prompts and content sent to the LLM provider (useful for debugging)
+- **Show model reasoning**: Log reasoning from thinking models to the developer console. Reasoning is never written to the note
 - **Enable debug logging**: Verbose plugin events in developer console
 
 ## Privacy & Security
@@ -283,6 +297,12 @@ The plugin auto-detects the correct API path structure for different OpenAI-comp
 - **Ollama**: Pull a model (`ollama pull llama3.1`) and verify with `ollama list`
 - **OpenAI-compatible**: Check that your API key has access to the models
 - Use the test connection button to see available models
+
+**Empty or truncated response:**
+
+- The response hit the generation limit. Raise `max_tokens` in the prompt, reduce the document size, or increase the server's context size
+- On a thinking model, reasoning consumes the budget before the answer is written — see **`max_tokens` and thinking models** above
+- Enable **Show model reasoning** to see what the model was doing when it ran out
 
 **Generated content not appearing:**
 

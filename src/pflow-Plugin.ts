@@ -9,6 +9,7 @@ import {
 import type {
     ConnectionConfig,
     IOllamaClient,
+    LlmLogKind,
     Logger,
     PromptFlowSettings,
     ResolvedPrompt,
@@ -94,7 +95,7 @@ export class PromptFlowPlugin extends Plugin implements Logger {
             );
         }
 
-        return createLLMClient(connection, this, this, () =>
+        return createLLMClient(connection, this.app, this, () =>
             this.saveSettings(),
         );
     }
@@ -329,12 +330,25 @@ export class PromptFlowPlugin extends Plugin implements Logger {
         }
     }
 
-    logLlmRequest(payload: unknown, request = true): void {
+    // "request" is the resolved prompt and options; "http" is the body actually
+    // sent over the wire. They are logged from different layers and are easy to
+    // confuse when they share a label.
+    logLlmRequest(payload: unknown, kind: LlmLogKind = "request"): void {
         if (this.settings?.showLlmRequests) {
-            console.debug(
-                request ? "(PF)[LLM Request]" : "(PF)[LLM Response]",
-                payload,
-            );
+            const label = {
+                request: "(PF)[LLM Request]",
+                http: "(PF)[LLM HTTP Request]",
+                response: "(PF)[LLM Response]",
+            }[kind];
+            console.debug(label, payload);
+        }
+    }
+
+    // Reasoning from thinking models is never written to the note. This makes
+    // it visible in the console when you want to see how the model got there.
+    logReasoning(reasoning: string): void {
+        if (this.settings?.showReasoning) {
+            console.debug("(PF)[LLM Reasoning]", reasoning);
         }
     }
 }

@@ -239,6 +239,14 @@ export class PromptFlowSettingsTab extends PluginSettingTab {
                         },
                     },
                     {
+                        name: "Show model reasoning",
+                        desc: "Log reasoning from thinking models to the developer console. Reasoning is never written to the note.",
+                        control: {
+                            type: "toggle",
+                            key: "showReasoning",
+                        },
+                    },
+                    {
                         name: "Enable debug logging",
                         desc: "Write verbose plugin events to the developer console.",
                         control: {

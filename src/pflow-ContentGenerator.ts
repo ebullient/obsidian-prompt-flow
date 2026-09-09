@@ -234,6 +234,7 @@ export class ContentGenerator {
 
         const generateOptions = {
             numCtx: resolvedPrompt.numCtx,
+            maxTokens: resolvedPrompt.maxTokens,
             context,
             temperature: resolvedPrompt.temperature,
             topP: resolvedPrompt.topP,
