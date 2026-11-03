@@ -45,7 +45,7 @@
     "vitest": "^4.1.12"
   },
   "dependencies": {
-    "eventsource-parser": "^3.1.0",
+    "eventsource-parser": "^4.1.2",
     "ollama": "^0.6.4"
   },
   "auto-changelog": {
